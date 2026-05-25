@@ -545,19 +545,227 @@ const POKEMON_DB = {
   steelix:     { rare:false, movesets:{ gym:['Dragon Tail','Heavy Slam','Earthquake'] }},
 };
 
-// Build rare set from DB + extra species
+// Build rare set from POKEMON_DB, then augment with the full rarity database
 const RARE_SET = new Set(Object.entries(POKEMON_DB).filter(([,v])=>v.rare).map(([k])=>k));
-['larvitar','pupitar','bagon','shelgon','beldum','metang',
- 'gible','gabite','goomy','sliggoo','jangmo-o','hakamo-o',
- 'deino','zweilous','axew','fraxure','riolu','dreepy','drakloak',
- 'bulbasaur','ivysaur','charmander','charmeleon','squirtle','wartortle',
- 'chikorita','bayleef','cyndaquil','quilava','totodile','croconaw',
- 'treecko','grovyle','torchic','combusken','mudkip','marshtomp',
- 'turtwig','grotle','chimchar','monferno','piplup','prinplup',
- 'snivy','servine','tepig','pignite','oshawott','dewott',
- 'chespin','quilladin','fennekin','braixen','froakie','frogadier',
- 'rowlet','dartrix','litten','torracat','popplio','brionne',
- 'meltan','melmetal','galarian farfetchd','galarian ponyta',
+
+// ── Full rarity database ──────────────────────────────────────────────────────
+// Every Pokémon listed here is Rare; anything not listed defaults to Common.
+// Organised by category so it is easy to update as new Pokémon are added to GO.
+[
+  // ── Legendaries ───────────────────────────────────────────────────
+  // Gen 1
+  'articuno','zapdos','moltres','mewtwo',
+  // Gen 2
+  'raikou','entei','suicune','lugia','ho-oh',
+  // Gen 3
+  'regirock','regice','registeel','latias','latios','kyogre','groudon','rayquaza',
+  // Gen 4
+  'uxie','mesprit','azelf','dialga','palkia','heatran','regigigas','giratina','cresselia',
+  // Gen 5
+  'cobalion','terrakion','virizion','tornadus','thundurus','reshiram','zekrom','landorus','kyurem',
+  // Gen 6
+  'xerneas','yveltal','zygarde',
+  // Gen 7
+  'tapu koko','tapu lele','tapu bulu','tapu fini','solgaleo','lunala','cosmog','cosmoem',
+  'nihilego','buzzwole','pheromosa','xurkitree','celesteela','kartana','guzzlord','necrozma',
+  // Gen 8
+  'zacian','zamazenta','eternatus','kubfu','urshifu','regieleki','regidrago',
+  'glastrier','spectrier','calyrex','enamorus',
+  // Gen 9
+  'wo-chien','chien-pao','ting-lu','chi-yu','koraidon','miraidon','ogerpon','terapagos',
+  'great tusk','scream tail','brute bonnet','flutter mane','slither wing','sandy shocks',
+  'iron treads','iron bundle','iron hands','iron jugulis','iron moth','iron thorns',
+  'roaring moon','iron valiant','walking wake','iron leaves','raging bolt','iron crown',
+
+  // ── Mythicals ─────────────────────────────────────────────────────
+  'mew','celebi','jirachi','deoxys','phione','manaphy','darkrai','shaymin','arceus',
+  'victini','keldeo','meloetta','genesect','diancie','hoopa','volcanion',
+  'magearna','marshadow','zeraora','meltan','melmetal','zarude','pecharunt',
+
+  // ── Pseudo-legendary lines ────────────────────────────────────────
+  'dratini','dragonair','dragonite',
+  'larvitar','pupitar','tyranitar',
+  'bagon','shelgon','salamence',
+  'beldum','metang','metagross',
+  'gible','gabite','garchomp',
+  'deino','zweilous','hydreigon',
+  'goomy','sliggoo','goodra',
+  'jangmo-o','hakamo-o','kommo-o',
+  'dreepy','drakloak','dragapult',
+  'frigibax','arctibax','baxcalibur',
+
+  // ── Starter lines (Gen 1–9) ───────────────────────────────────────
+  'bulbasaur','ivysaur','venusaur',
+  'charmander','charmeleon','charizard',
+  'squirtle','wartortle','blastoise',
+  'chikorita','bayleef','meganium',
+  'cyndaquil','quilava','typhlosion',
+  'totodile','croconaw','feraligatr',
+  'treecko','grovyle','sceptile',
+  'torchic','combusken','blaziken',
+  'mudkip','marshtomp','swampert',
+  'turtwig','grotle','torterra',
+  'chimchar','monferno','infernape',
+  'piplup','prinplup','empoleon',
+  'snivy','servine','serperior',
+  'tepig','pignite','emboar',
+  'oshawott','dewott','samurott',
+  'chespin','quilladin','chesnaught',
+  'fennekin','braixen','delphox',
+  'froakie','frogadier','greninja',
+  'rowlet','dartrix','decidueye',
+  'litten','torracat','incineroar',
+  'popplio','brionne','primarina',
+  'grookey','thwackey','rillaboom',
+  'scorbunny','raboot','cinderace',
+  'sobble','drizzile','inteleon',
+  'sprigatito','floragato','meowscarada',
+  'fuecoco','crocalor','skeledirge',
+  'quaxly','quaxwell','quaquaval',
+
+  // ── Regional exclusives ───────────────────────────────────────────
+  "farfetch'd",'kangaskhan','mr. mime','tauros','jynx',
+  'heracross','corsola','illumise','volbeat',
+  'zangoose','seviper','lunatone','solrock','torkoal','tropius','relicanth',
+  'mime jr.','chatot','carnivine','pachirisu',
+  'pansage','pansear','panpour','simisage','simisear','simipour',
+  'maractus','sigilyph','bouffalant','heatmor','durant',
+  'comfey','oranguru','passimian','minior','turtonator','togedemaru',
+  'klefki','furfrou','hawlucha',
+  'stonjourner','eiscue',
+
+  // ── Fossil Pokémon ────────────────────────────────────────────────
+  'omanyte','omastar','kabuto','kabutops','aerodactyl',
+  'lileep','cradily','anorith','armaldo',
+  'cranidos','rampardos','shieldon','bastiodon',
+  'tirtouga','carracosta','archen','archeops',
+  'tyrunt','tyrantrum','amaura','aurorus',
+  'dracozolt','arctozolt','dracovish','arctovish',
+
+  // ── Hard to find / Egg-only / Raid-exclusive / Very rare wild ─────
+  // Gen 1
+  'hitmonlee','hitmonchan','hitmontop','tyrogue',
+  'chansey','blissey','lapras','snorlax',
+  'scyther','scizor','pinsir',
+  'lickitung','lickilicky',
+  'electabuzz','electivire','magmar','magmortar',
+  'porygon','porygon2','porygon-z',
+  'tangela','tangrowth',
+  // Gen 2
+  'togepi','togetic','togekiss',
+  'unown',
+  'sudowoodo',
+  'gligar','gliscor',
+  'sneasel','weavile',
+  'miltank','stantler','wyrdeer',
+  'skarmory','smeargle',
+  'dunsparce','dudunsparce',
+  // Gen 3
+  'ralts','kirlia','gardevoir','gallade',
+  'nincada','ninjask','shedinja',
+  'feebas','milotic',
+  'castform','kecleon','absol',
+  // Gen 4
+  'riolu','lucario',
+  'shinx','luxio','luxray',
+  'budew','roserade',
+  'munchlax',
+  'rotom','spiritomb',
+  'hippopotas','hippowdon',
+  'skorupi','drapion',
+  'croagunk','toxicroak',
+  'finneon','lumineon',
+  'mantyke','mantine',
+  'snover','abomasnow',
+  // Gen 5
+  'zorua','zoroark',
+  'axew','fraxure','haxorus',
+  'druddigon',
+  'golett','golurk',
+  'pawniard','bisharp','kingambit',
+  'vullaby','mandibuzz',
+  'larvesta','volcarona',
+  'mienfoo','mienshao',
+  'cubchoo','beartic',
+  'solosis','duosion','reuniclus',
+  'litwick','lampent','chandelure',
+  'tynamo','eelektrik','eelektross',
+  'elgyem','beheeyem',
+  'cryogonal',
+  // Gen 6
+  'espurr','meowstic',
+  'honedge','doublade','aegislash',
+  'helioptile','heliolisk',
+  'noibat','noivern',
+  'phantump','trevenant',
+  'pumpkaboo','gourgeist',
+  'carbink',
+  'bergmite','avalugg',
+  'sylveon',
+  // Gen 7
+  'type: null','silvally',
+  'mimikyu',
+  'dhelmise',
+  'stufful','bewear',
+  'wimpod','golisopod',
+  'sandygast','palossand',
+  'morelull','shiinotic',
+  'salandit','salazzle',
+  'bounsweet','steenee','tsareena',
+  'drampa','bruxish',
+  // Gen 8
+  'applin','flapple','appletun','dipplin','hydrapple',
+  'toxel','toxtricity',
+  'sinistea','polteageist',
+  'hatenna','hattrem','hatterene',
+  'impidimp','morgrem','grimmsnarl',
+  'milcery','alcremie',
+  'falinks','snom','frosmoth',
+  'morpeko',
+  'cufant','copperajah',
+  'duraludon','archaludon',
+  'indeedee',
+  // Gen 9
+  'charcadet','armarouge','ceruledge',
+  'tinkatink','tinkatuff','tinkaton',
+  'gimmighoul','gholdengo',
+  'glimmet','glimmora',
+  'greavard','houndstone',
+  'finizen','palafin',
+  'annihilape','clodsire','farigiraf',
+  'munkidori','fezandipiti','okidogi',
+  'cyclizar','orthworm',
+
+  // ── Regional & special forms ──────────────────────────────────────
+  // Alolan forms
+  'alolan raichu','alolan sandshrew','alolan sandslash',
+  'alolan vulpix','alolan ninetales',
+  'alolan meowth','alolan persian',
+  'alolan geodude','alolan graveler','alolan golem',
+  'alolan grimer','alolan muk',
+  'alolan exeggutor','alolan marowak',
+  // Galarian forms
+  "galarian farfetch'd",'galarian ponyta','galarian rapidash',
+  'galarian slowpoke','galarian slowbro','galarian slowking',
+  'galarian weezing','galarian corsola','galarian cursola',
+  'galarian zigzagoon','galarian linoone','galarian obstagoon',
+  'galarian meowth','galarian perrserker',
+  'galarian yamask','galarian runerigus',
+  'galarian stunfisk','galarian darumaka','galarian darmanitan',
+  'galarian articuno','galarian zapdos','galarian moltres',
+  // Hisuian forms
+  'hisuian growlithe','hisuian arcanine',
+  'hisuian voltorb','hisuian electrode',
+  'hisuian qwilfish','hisuian overqwil',
+  'hisuian sneasel','hisuian sneasler',
+  'hisuian typhlosion','hisuian samurott','hisuian decidueye',
+  'hisuian lilligant',
+  'hisuian zorua','hisuian zoroark',
+  'hisuian braviary',
+  'hisuian avalugg',
+  'hisuian sliggoo','hisuian goodra',
+  // Paldean forms
+  'paldean tauros','paldean wooper','paldean clodsire',
 ].forEach(n => RARE_SET.add(n));
 
 // ═══════════════════════════════════════════════════════
