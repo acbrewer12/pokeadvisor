@@ -615,8 +615,31 @@ function decide(rawInput) {
     input.isUnev = false;   // legendaries don't evolve in GO
     input.rarity = 'rare';  // always treat as rare
   }
+
+  // Legendary + 85 %+ IV → direct Raid Attacker path; CP is irrelevant for Legendaries
+  if (input.isLegendary && input.ivPct >= 85) {
+    return applySpecialOverrides(legendaryHighIVResult(input), rawInput);
+  }
+
   const result = _decideCore(input);
   return applySpecialOverrides(result, rawInput);
+}
+
+function legendaryHighIVResult({ name, ivPct, pvpPct, atk, isShadow }) {
+  const reasons = [], steps = [];
+  reasons.push({ icon:'⚔️', text:`${ivPct}% IVs on a Legendary — this is premier raid attacker material.` });
+  reasons.push({ icon:'👑', text:'Legendary Pokémon always target Master League (no CP cap) — current CP does not affect this recommendation.' });
+  if (atk >= 13) reasons.push({ icon:'💎', text:`ATK ${atk}/15 is excellent — maximises damage output in raids.` });
+  if (isShadow && atk >= 13) reasons.push({ icon:'👤', text:`Shadow + ATK ${atk}/15 delivers ~20% more raid damage — do not purify.` });
+  if (pvpPct >= 70) reasons.push({ icon:'🏆', text:`PvP rank of ${pvpPct}% — solid Master League PvP option as a secondary role.` });
+
+  steps.push(`Favorite ${esc(name)} immediately.`);
+  if (isShadow) steps.push('Do NOT purify — the Shadow damage bonus is especially powerful on a Legendary raid attacker.');
+  steps.push(`Power up ${esc(name)} to Level 40 for raids; push to Level 50 with XL candy for peak performance.`);
+  steps.push('Use Fast TM / Charged TM to equip the best raid moveset (shown below).');
+  steps.push('Deploy in raids where its type is super-effective against the boss.');
+  if (pvpPct >= 70) steps.push(`Secondary — Master League PvP: power it to Level 50 (no CP cap) and use rank ${pvpPct}% to your advantage.`);
+  return { category: 'RAID', reasons, steps };
 }
 
 function applySpecialOverrides({ category, reasons, steps }, { name, isShiny, hasExclMove, isLegendary }) {
@@ -646,9 +669,10 @@ function applySpecialOverrides({ category, reasons, steps }, { name, isShiny, ha
   }
 
   // ── Legendary: if the engine fell through to plain KEEP, push toward Master League ──
+  // (High-IV legendaries are handled earlier via legendaryHighIVResult; this covers lower-IV cases.)
   if (isLegendary && category === 'KEEP') {
-    reasons.push({ icon:'👑', text:'As a Legendary it is inherently powerful in Master League — worth investing in even without a standout PvP rank.' });
-    steps.push('Try it in Master League PvP — Legendaries perform well there without CP restrictions.');
+    reasons.push({ icon:'👑', text:'As a Legendary it is inherently powerful in Master League — no CP cap means its current CP is irrelevant.' });
+    steps.push('Master League PvP: power it up fully to Level 50 — there is no CP ceiling for Legendaries there.');
   }
 
   return { category, reasons, steps };
@@ -903,7 +927,8 @@ function renderResult(input, result) {
     isLegendary   ? `<span class="badge badge-legendary">👑 Legendary</span>`   : '',
     hasExclMove   ? `<span class="badge badge-exclusive">🔒 Exclusive Move</span>` : '',
     rarity==='rare' ? `<span class="badge badge-rare">🌟 Rare</span>` : `<span class="badge badge-common">⬛ Common</span>`,
-    league        ? `<span class="badge badge-league">${league.icon} ${league.name}</span>` : '',
+    isLegendary   ? `<span class="badge badge-league">🔴 Master League</span>`
+                  : league ? `<span class="badge badge-league">${league.icon} ${league.name}</span>` : '',
   ].join('');
 
   document.getElementById('res-category-badge').innerHTML =
