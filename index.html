@@ -273,6 +273,7 @@
           <label>Pokémon Name</label>
           <input type="text" id="poke-name" placeholder="e.g. Garchomp" autocomplete="off" oninput="onNameInput(this.value)" />
           <div class="rarity-auto" id="rarity-auto-msg"></div>
+          <div class="rarity-auto" id="evo-auto-msg"></div>
         </div>
 
         <div class="form-group">
@@ -1025,6 +1026,136 @@ const RARE_SET = new Set(Object.entries(RARITY_MAP).filter(([,v])=>v==='r').map(
 // Catch any POKEMON_DB entries not covered by RARITY_MAP
 Object.entries(POKEMON_DB).forEach(([k,v]) => { if (v.rare && !RARITY_MAP[k]) RARE_SET.add(k); });
 
+// ── Evolution stage database ──────────────────────────────────────────────────
+// Every Pokémon in this set is NOT a final evolution (basic or middle stage).
+// Anything absent defaults to final / single-stage → Unevolved toggle stays OFF.
+const NON_FINAL_SET = new Set([
+  // Gen 1
+  'bulbasaur','ivysaur','charmander','charmeleon','squirtle','wartortle',
+  'caterpie','metapod','weedle','kakuna',
+  'pidgey','pidgeotto','rattata','spearow','ekans',
+  'pichu','pikachu','sandshrew',
+  "nidoran♀",'nidorina',"nidoran♂",'nidorino',
+  'cleffa','clefairy','igglybuff','jigglypuff',
+  'zubat','golbat','oddish','gloom','paras','venonat',
+  'diglett','meowth','psyduck','mankey','primeape',
+  'growlithe','poliwag','poliwhirl',
+  'abra','kadabra','machop','machoke',
+  'bellsprout','weepinbell','tentacool',
+  'geodude','graveler','ponyta','slowpoke',
+  'magnemite','magneton','doduo','seel','grimer',
+  'shellder','gastly','haunter','onix','drowzee','krabby',
+  'voltorb','exeggcute','cubone','tyrogue','lickitung',
+  'koffing','rhyhorn','rhydon','chansey',
+  'horsea','seadra','scyther',
+  'elekid','electabuzz','magby','magmar','tangela',
+  'goldeen','staryu','magikarp','eevee',
+  'porygon','porygon2','omanyte','kabuto',
+  'dratini','dragonair','larvitar','pupitar',
+  // Gen 2
+  'chikorita','bayleef','cyndaquil','quilava','totodile','croconaw',
+  'meltan',
+  'sentret','hoothoot','ledyba','spinarak','chinchou',
+  'togepi','togetic','natu','mareep','flaaffy',
+  'azurill','marill','hoppip','skiploom','aipom','sunkern',
+  'yanma','wooper','misdreavus','wynaut','pineco',
+  'girafarig','bonsly','slugma','swinub','piloswine',
+  'remoraid','teddiursa','ursaring','snubbull',
+  'houndour','phanpy','murkrow','stantler',
+  'sneasel','gligar','dunsparce','qwilfish','corsola',
+  // Gen 3
+  'poochyena','zigzagoon','linoone',
+  'wurmple','silcoon','cascoon',
+  'lotad','lombre','seedot','nuzleaf',
+  'taillow','wingull','surskit','shroomish',
+  'slakoth','vigoroth','nosepass','skitty',
+  'aron','lairon','meditite','electrike',
+  'budew','roselia','gulpin','carvanha',
+  'wailmer','numel','spoink',
+  'trapinch','vibrava','cacnea','swablu',
+  'barboach','corphish','baltoy',
+  'lileep','anorith','feebas','shuppet',
+  'duskull','dusclops','snorunt','spheal','sealeo','clamperl',
+  'bagon','shelgon','beldum','metang',
+  'ralts','kirlia','nincada',
+  'whismur','loudred','makuhita',
+  'treecko','grovyle','torchic','combusken','mudkip','marshtomp',
+  // Gen 4
+  'starly','staravia','bidoof','kricketot',
+  'shinx','luxio','cranidos','shieldon',
+  'burmy','combee','buizel','cherubi',
+  'shellos','drifloon','buneary','glameow',
+  'chingling','stunky','bronzor',
+  'happiny','mime jr.','gible','gabite',
+  'munchlax','riolu','hippopotas',
+  'skorupi','croagunk','finneon','mantyke','snover',
+  'turtwig','grotle','chimchar','monferno','piplup','prinplup',
+  'cosmog','cosmoem',
+  // Gen 5
+  'snivy','servine','tepig','pignite','oshawott','dewott',
+  'patrat','lillipup','herdier','purrloin',
+  'pansage','pansear','panpour','munna',
+  'pidove','tranquill','blitzle','roggenrola','boldore',
+  'woobat','drilbur','timburr','gurdurr',
+  'tympole','palpitoad',
+  'sewaddle','swadloon','venipede','whirlipede',
+  'cottonee','petilil','sandile','krokorok',
+  'darumaka','dwebble','scraggy','yamask',
+  'trubbish','zorua','minccino','gothita','gothorita',
+  'solosis','duosion','ducklett','vanillite','vanillish',
+  'deerling','karrablast','foongus','frillish',
+  'joltik','ferroseed','klink','klang',
+  'tynamo','eelektrik','elgyem','litwick','lampent',
+  'axew','fraxure','cubchoo','shelmet','mienfoo',
+  'golett','pawniard','bisharp','rufflet','vullaby',
+  'deino','zweilous','larvesta',
+  // Gen 6
+  'chespin','quilladin','fennekin','braixen','froakie','frogadier',
+  'bunnelby','fletchling','fletchinder','scatterbug','spewpa',
+  'litleo','flabebe','floette','skiddo','pancham',
+  'espurr','honedge','doublade','spritzee','swirlix',
+  'inkay','binacle','skrelp','clauncher','helioptile',
+  'tyrunt','amaura','goomy','sliggoo',
+  'phantump','pumpkaboo','bergmite','noibat',
+  // Gen 7
+  'rowlet','dartrix','litten','torracat','popplio','brionne',
+  'pikipek','trumbeak','yungoos','grubbin','charjabug',
+  'crabrawler','cutiefly','rockruff',
+  'mareanie','mudbray','dewpider','fomantis','morelull',
+  'salandit','stufful','bounsweet','steenee',
+  'wimpod','sandygast','type: null',
+  'jangmo-o','hakamo-o',
+  // Gen 8
+  'grookey','thwackey','scorbunny','raboot','sobble','drizzile',
+  'skwovet','rookidee','corvisquire','blipbug','dottler',
+  'nickit','gossifleur','wooloo','chewtle','yamper',
+  'rolycoly','carkol','applin','silicobra',
+  'arrokuda','toxel','sizzlipede','clobbopus',
+  'sinistea','hatenna','hattrem','impidimp','morgrem',
+  'milcery','snom','cufant','duraludon',
+  'dreepy','drakloak','kubfu',
+  // Gen 9
+  'sprigatito','floragato','fuecoco','crocalor','quaxly','quaxwell',
+  'lechonk','tarountula','nymble','pawmi','pawmo',
+  'tandemaus','fidough','smoliv','dolliv','nacli','naclstack',
+  'charcadet','tadbulb','wattrel','maschiff','shroodle',
+  'bramblin','toedscool','capsakid','rellor','flittle',
+  'tinkatink','tinkatuff','wiglett','finizen',
+  'varoom','glimmet','greavard','gimmighoul',
+  'frigibax','arctibax',
+  // Regional forms that can evolve further
+  "galarian farfetch'd",
+  'galarian slowpoke','galarian corsola',
+  'galarian zigzagoon','galarian linoone',
+  'galarian meowth','galarian yamask','galarian darumaka',
+  'alolan sandshrew','alolan vulpix','alolan meowth',
+  'alolan geodude','alolan graveler','alolan grimer',
+  'hisuian growlithe','hisuian voltorb',
+  'hisuian qwilfish','hisuian sneasel',
+  'hisuian zorua','hisuian sliggoo',
+  'paldean wooper',
+]);
+
 // ═══════════════════════════════════════════════════════
 // LEAGUES  (CP thresholds)
 // ═══════════════════════════════════════════════════════
@@ -1056,22 +1187,34 @@ function updateBar(stat) {
 }
 
 function onNameInput(val) {
-  const key = normName(val);
-  const msg = document.getElementById('rarity-auto-msg');
-  if (!val.trim()) { msg.textContent=''; msg.className='rarity-auto'; return; }
+  const key     = normName(val);
+  const rarMsg  = document.getElementById('rarity-auto-msg');
+  const evoMsg  = document.getElementById('evo-auto-msg');
+  if (!val.trim()) {
+    rarMsg.textContent = ''; rarMsg.className = 'rarity-auto';
+    evoMsg.textContent = ''; evoMsg.className = 'rarity-auto';
+    return;
+  }
   let isRare;
   if (RARITY_MAP[key] !== undefined) {
     isRare = RARITY_MAP[key] === 'r';
   } else if (POKEMON_DB[key] !== undefined) {
     isRare = POKEMON_DB[key].rare;
   } else {
-    msg.textContent = 'Not recognized — set rarity manually.';
-    msg.className = 'rarity-auto';
+    rarMsg.textContent = 'Not recognized — set rarity manually.';
+    rarMsg.className = 'rarity-auto';
+    evoMsg.textContent = ''; evoMsg.className = 'rarity-auto';
     return;
   }
+  // Rarity
   document.getElementById('poke-rarity').value = isRare ? 'rare' : 'common';
-  msg.textContent = isRare ? '✓ Auto-detected: Rare / Legendary' : '✓ Auto-detected: Common';
-  msg.className = 'rarity-auto detected';
+  rarMsg.textContent = isRare ? '✓ Auto-detected: Rare / Legendary' : '✓ Auto-detected: Common';
+  rarMsg.className = 'rarity-auto detected';
+  // Evolution stage
+  const isUnev = NON_FINAL_SET.has(key);
+  document.getElementById('is-unevolved').checked = isUnev;
+  evoMsg.textContent = isUnev ? '✓ Auto-detected: Unevolved' : '✓ Auto-detected: Final Evolution';
+  evoMsg.className = 'rarity-auto detected';
 }
 
 function onCpInput(val) {
