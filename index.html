@@ -211,17 +211,45 @@
     .tag-chip-iv:hover { border-color: #757575; }
     .tag-hint { font-size: 0.73rem; color: #9e9e9e; margin-top: 8px; line-height: 1.4; }
 
-    /* Compare */
-    .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .compare-col-label { font-size: 0.73rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: #9e9e9e; margin-bottom: 8px; text-align: center; }
-    .compare-result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 14px; }
-    .compare-role-card { background: var(--gray-light); border-radius: 12px; padding: 14px; text-align: center; }
-    .compare-role-card .role-label { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; color: #9e9e9e; letter-spacing: 0.5px; }
-    .compare-role-card .winner-name { font-size: 0.98rem; font-weight: 800; color: #212121; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .compare-role-card .winner-margin { font-size: 0.75rem; color: #757575; margin-top: 2px; }
-    .compare-role-card.winner-a .winner-name { color: var(--blue); }
-    .compare-role-card.winner-b .winner-name { color: var(--orange); }
-    .compare-role-card.tie .winner-name { color: var(--gray); }
+    /* Compare – multi-entry (up to 5) */
+    .cmp-entry { border: 2px solid var(--gray-light); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .cmp-entry-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .cmp-entry-label { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; }
+    .cmp-remove-btn { background: none; border: none; cursor: pointer; color: #9e9e9e; font-size: 1.05rem; padding: 2px 6px; line-height: 1; border-radius: 6px; }
+    .cmp-remove-btn:hover { color: #e53935; background: #ffebee; }
+    .cmp-field-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr 1fr 1fr 1fr; gap: 6px; margin-bottom: 8px; }
+    .cmp-field-grid .form-group { margin: 0; }
+    .cmp-field-grid label { font-size: 0.68rem; }
+    .cmp-field-grid input { padding: 6px 8px; font-size: 0.83rem; }
+    .cmp-toggle-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 6px; }
+    .cmp-toggle-item { display: flex; align-items: center; gap: 4px; font-size: 0.8rem; color: #616161; cursor: pointer; user-select: none; }
+    .cmp-toggle-item input { margin: 0; cursor: pointer; }
+    .cmp-btn-row { display: flex; gap: 10px; margin-top: 4px; }
+    .cmp-add-btn { flex: 1; background: white; border: 2px dashed #bdbdbd; color: #757575; border-radius: 10px; padding: 11px 18px; font-size: 0.88rem; font-weight: 700; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+    .cmp-add-btn:hover { border-color: var(--blue); color: var(--blue); }
+    /* Ranked results */
+    .cmp-ranked-list { display: flex; flex-direction: column; gap: 10px; margin: 12px 0; }
+    .cmp-rank-item { border-radius: 12px; padding: 13px 15px; display: flex; align-items: flex-start; gap: 12px; }
+    .cmp-rank-item.rank-1 { background: linear-gradient(135deg,#fff8e1,#fff3e0); border: 2px solid #ffd54f; }
+    .cmp-rank-item.rank-other { background: var(--gray-light); border: 1.5px solid #e0e0e0; }
+    .cmp-rank-badge { font-size: 1.55rem; flex-shrink: 0; width: 36px; text-align: center; line-height: 1.2; }
+    .cmp-rank-info { flex: 1; min-width: 0; }
+    .cmp-rank-name { font-size: 1rem; font-weight: 800; color: #212121; }
+    .cmp-rank-item.rank-1 .cmp-rank-name { color: #bf360c; }
+    .cmp-rank-score { font-size: 0.77rem; color: #757575; margin-top: 2px; }
+    .cmp-rank-tags { margin-top: 7px; display: flex; flex-wrap: wrap; gap: 4px; }
+    /* Best-for-role row */
+    .cmp-role-section { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-top: 4px; }
+    .cmp-role-card { background: var(--gray-light); border-radius: 12px; padding: 12px 10px; text-align: center; }
+    .cmp-role-card .cmp-role-icon { font-size: 1.3rem; }
+    .cmp-role-card .cmp-role-label { font-size: 0.67rem; font-weight: 700; text-transform: uppercase; color: #9e9e9e; letter-spacing: 0.5px; margin-top: 2px; }
+    .cmp-role-card .cmp-role-winner { font-size: 0.9rem; font-weight: 800; color: #212121; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .cmp-role-card .cmp-role-score { font-size: 0.71rem; color: #757575; margin-top: 2px; }
+    @media (max-width: 500px) {
+      .cmp-field-grid { grid-template-columns: 1fr 1fr; }
+      .cmp-role-section { grid-template-columns: 1fr; }
+      .cmp-btn-row { flex-direction: column; }
+    }
 
     /* History */
     .history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
@@ -404,45 +432,22 @@
   <!-- ══════════════ COMPARE TAB ══════════════ -->
   <div id="tab-compare" class="tab-content">
     <div class="card">
-      <div class="card-title">⚖️ Compare Two Pokémon</div>
-      <div class="compare-grid">
-        <div>
-          <div class="compare-col-label" style="color:#1565c0;">Pokémon A</div>
-          <div class="form-group" style="margin-bottom:9px;"><label>Name</label><input type="text" id="cmp-a-name" placeholder="e.g. Machamp" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>Overall IV %</label><input type="number" id="cmp-a-iv" placeholder="0–100" min="0" max="100" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>ATK IV</label><input type="number" id="cmp-a-atk" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>DEF IV</label><input type="number" id="cmp-a-def" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>STA IV</label><input type="number" id="cmp-a-sta" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>PvP %</label><input type="number" id="cmp-a-pvp" placeholder="0–100" min="0" max="100" /></div>
-          <div class="toggle-group" style="margin-top:4px;">
-            <span class="toggle-label">Shadow?</span>
-            <label class="toggle-switch"><input type="checkbox" id="cmp-a-shadow" /><span class="toggle-slider"></span></label>
-          </div>
-        </div>
-        <div>
-          <div class="compare-col-label" style="color:#e65100;">Pokémon B</div>
-          <div class="form-group" style="margin-bottom:9px;"><label>Name</label><input type="text" id="cmp-b-name" placeholder="e.g. Conkeldurr" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>Overall IV %</label><input type="number" id="cmp-b-iv" placeholder="0–100" min="0" max="100" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>ATK IV</label><input type="number" id="cmp-b-atk" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>DEF IV</label><input type="number" id="cmp-b-def" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>STA IV</label><input type="number" id="cmp-b-sta" placeholder="0–15" min="0" max="15" /></div>
-          <div class="form-group" style="margin-bottom:9px;"><label>PvP %</label><input type="number" id="cmp-b-pvp" placeholder="0–100" min="0" max="100" /></div>
-          <div class="toggle-group" style="margin-top:4px;">
-            <span class="toggle-label">Shadow?</span>
-            <label class="toggle-switch"><input type="checkbox" id="cmp-b-shadow" /><span class="toggle-slider"></span></label>
-          </div>
-        </div>
+      <div class="card-title">⚖️ Compare Pokémon <span style="font-size:0.78rem;font-weight:500;color:#9e9e9e;">Up to 5</span></div>
+      <div id="cmp-entries"></div>
+      <div class="cmp-btn-row">
+        <button class="cmp-add-btn" id="cmp-add-btn" onclick="addCompareEntry()">+ Add Pokémon</button>
+        <button class="btn-primary" style="flex:1;" onclick="runCompare()">Compare →</button>
       </div>
-      <button class="btn-primary" onclick="runCompare()">Compare →</button>
     </div>
 
     <div class="card" id="compare-results" style="display:none">
       <div class="card-title" id="cmp-res-title">Results</div>
-      <div class="compare-result-grid" id="cmp-grid"></div>
+      <div class="section-label" style="margin-top:6px;">Overall Ranking</div>
+      <div id="cmp-ranked"></div>
       <div class="divider"></div>
-      <div class="section-label">Overall Verdict</div>
-      <div id="cmp-verdict" style="font-size:0.92rem;color:#424242;line-height:1.5;"></div>
-      <button class="btn-secondary" onclick="document.getElementById('compare-results').style.display='none'">← Compare again</button>
+      <div class="section-label">Best for Each Role</div>
+      <div id="cmp-roles"></div>
+      <button class="btn-secondary" style="margin-top:16px;" onclick="document.getElementById('compare-results').style.display='none'">← Compare again</button>
     </div>
   </div>
 
@@ -816,9 +821,9 @@ const RARITY_MAP = {
   'tangela':'r','tangrowth':'r',
   "farfetch'd":'r','kangaskhan':'r','mr. mime':'r','tauros':'r','jynx':'r',
   'omanyte':'r','omastar':'r','kabuto':'r','kabutops':'r','aerodactyl':'r',
-  'bulbasaur':'r','ivysaur':'r','venusaur':'r',
-  'charmander':'r','charmeleon':'r','charizard':'r',
-  'squirtle':'r','wartortle':'r','blastoise':'r',
+  'bulbasaur':'c','ivysaur':'r','venusaur':'r',
+  'charmander':'c','charmeleon':'r','charizard':'r',
+  'squirtle':'c','wartortle':'r','blastoise':'r',
   'dratini':'r','dragonair':'r','dragonite':'r',
   'articuno':'r','zapdos':'r','moltres':'r','mewtwo':'r','mew':'r',
 
@@ -831,9 +836,9 @@ const RARITY_MAP = {
   'skarmory':'r','smeargle':'r',
   'dunsparce':'r','dudunsparce':'r',
   'heracross':'r','corsola':'r','illumise':'r','volbeat':'r',
-  'chikorita':'r','bayleef':'r','meganium':'r',
-  'cyndaquil':'r','quilava':'r','typhlosion':'r',
-  'totodile':'r','croconaw':'r','feraligatr':'r',
+  'chikorita':'c','bayleef':'r','meganium':'r',
+  'cyndaquil':'c','quilava':'r','typhlosion':'r',
+  'totodile':'c','croconaw':'r','feraligatr':'r',
   'larvitar':'r','pupitar':'r','tyranitar':'r',
   'raikou':'r','entei':'r','suicune':'r','lugia':'r','ho-oh':'r',
   'celebi':'r',
@@ -847,9 +852,9 @@ const RARITY_MAP = {
   'torkoal':'r','tropius':'r','relicanth':'r',
   'lileep':'r','cradily':'r','anorith':'r','armaldo':'r',
   'tirtouga':'r','carracosta':'r','archen':'r','archeops':'r',
-  'treecko':'r','grovyle':'r','sceptile':'r',
-  'torchic':'r','combusken':'r','blaziken':'r',
-  'mudkip':'r','marshtomp':'r','swampert':'r',
+  'treecko':'c','grovyle':'r','sceptile':'r',
+  'torchic':'c','combusken':'r','blaziken':'r',
+  'mudkip':'c','marshtomp':'r','swampert':'r',
   'bagon':'r','shelgon':'r','salamence':'r',
   'beldum':'r','metang':'r','metagross':'r',
   'regirock':'r','regice':'r','registeel':'r',
@@ -870,9 +875,9 @@ const RARITY_MAP = {
   'finneon':'r','lumineon':'r',
   'mantyke':'r','mantine':'r',
   'snover':'r','abomasnow':'r',
-  'turtwig':'r','grotle':'r','torterra':'r',
-  'chimchar':'r','monferno':'r','infernape':'r',
-  'piplup':'r','prinplup':'r','empoleon':'r',
+  'turtwig':'c','grotle':'r','torterra':'r',
+  'chimchar':'c','monferno':'r','infernape':'r',
+  'piplup':'c','prinplup':'r','empoleon':'r',
   'gible':'r','gabite':'r','garchomp':'r',
   'uxie':'r','mesprit':'r','azelf':'r',
   'dialga':'r','palkia':'r',
@@ -898,9 +903,9 @@ const RARITY_MAP = {
   'elgyem':'r','beheeyem':'r',
   'cryogonal':'r',
   'heatmor':'r','durant':'r',
-  'snivy':'r','servine':'r','serperior':'r',
-  'tepig':'r','pignite':'r','emboar':'r',
-  'oshawott':'r','dewott':'r','samurott':'r',
+  'snivy':'c','servine':'r','serperior':'r',
+  'tepig':'c','pignite':'r','emboar':'r',
+  'oshawott':'c','dewott':'r','samurott':'r',
   'deino':'r','zweilous':'r','hydreigon':'r',
   'cobalion':'r','terrakion':'r','virizion':'r',
   'tornadus':'r','thundurus':'r','reshiram':'r',
@@ -918,9 +923,9 @@ const RARITY_MAP = {
   'bergmite':'r','avalugg':'r',
   'sylveon':'r',
   'hawlucha':'r','furfrou':'r','klefki':'r',
-  'chespin':'r','quilladin':'r','chesnaught':'r',
-  'fennekin':'r','braixen':'r','delphox':'r',
-  'froakie':'r','frogadier':'r','greninja':'r',
+  'chespin':'c','quilladin':'r','chesnaught':'r',
+  'fennekin':'c','braixen':'r','delphox':'r',
+  'froakie':'c','frogadier':'r','greninja':'r',
   'tyrunt':'r','tyrantrum':'r','amaura':'r','aurorus':'r',
   'goomy':'r','sliggoo':'r','goodra':'r',
   'xerneas':'r','yveltal':'r','zygarde':'r',
@@ -938,9 +943,9 @@ const RARITY_MAP = {
   'drampa':'r','bruxish':'r',
   'comfey':'r','oranguru':'r','passimian':'r',
   'minior':'r','turtonator':'r','togedemaru':'r',
-  'rowlet':'r','dartrix':'r','decidueye':'r',
-  'litten':'r','torracat':'r','incineroar':'r',
-  'popplio':'r','brionne':'r','primarina':'r',
+  'rowlet':'c','dartrix':'r','decidueye':'r',
+  'litten':'c','torracat':'r','incineroar':'r',
+  'popplio':'c','brionne':'r','primarina':'r',
   'jangmo-o':'r','hakamo-o':'r','kommo-o':'r',
   'tapu koko':'r','tapu lele':'r','tapu bulu':'r','tapu fini':'r',
   'solgaleo':'r','lunala':'r','cosmog':'r','cosmoem':'r',
@@ -960,9 +965,9 @@ const RARITY_MAP = {
   'cufant':'r','copperajah':'r',
   'duraludon':'r','archaludon':'r',
   'indeedee':'r','stonjourner':'r','eiscue':'r',
-  'grookey':'r','thwackey':'r','rillaboom':'r',
-  'scorbunny':'r','raboot':'r','cinderace':'r',
-  'sobble':'r','drizzile':'r','inteleon':'r',
+  'grookey':'c','thwackey':'r','rillaboom':'r',
+  'scorbunny':'c','raboot':'r','cinderace':'r',
+  'sobble':'c','drizzile':'r','inteleon':'r',
   'dracozolt':'r','arctozolt':'r','dracovish':'r','arctovish':'r',
   'dreepy':'r','drakloak':'r','dragapult':'r',
   'zacian':'r','zamazenta':'r','eternatus':'r',
@@ -981,9 +986,9 @@ const RARITY_MAP = {
   'annihilape':'r','clodsire':'r','farigiraf':'r',
   'munkidori':'r','fezandipiti':'r','okidogi':'r',
   'cyclizar':'r','orthworm':'r',
-  'sprigatito':'r','floragato':'r','meowscarada':'r',
-  'fuecoco':'r','crocalor':'r','skeledirge':'r',
-  'quaxly':'r','quaxwell':'r','quaquaval':'r',
+  'sprigatito':'c','floragato':'r','meowscarada':'r',
+  'fuecoco':'c','crocalor':'r','skeledirge':'r',
+  'quaxly':'c','quaxwell':'r','quaquaval':'r',
   'frigibax':'r','arctibax':'r','baxcalibur':'r',
   'wo-chien':'r','chien-pao':'r','ting-lu':'r','chi-yu':'r',
   'koraidon':'r','miraidon':'r','ogerpon':'r','terapagos':'r',
@@ -1160,7 +1165,6 @@ const NON_FINAL_SET = new Set([
 // LEAGUES  (CP thresholds)
 // ═══════════════════════════════════════════════════════
 const LEAGUES = [
-  { max:500,      name:'Little Cup',    icon:'🔵', note:'Must be unevolved and able to evolve.' },
   { max:1500,     name:'Great League',  icon:'🟢', note:'Optimal when CP is close to 1,500.' },
   { max:2500,     name:'Ultra League',  icon:'🟣', note:'Optimal when CP is close to 2,500.' },
   { max:Infinity, name:'Master League', icon:'🔴', note:'No CP cap — maximize power.' },
@@ -1701,77 +1705,168 @@ function resetAnalyze() {
 // COMPARE
 // ═══════════════════════════════════════════════════════
 function scoreRole(stats, role) {
-  const { ivPct, pvpPct, atk, def, sta, isShadow } = stats;
+  const { ivPct, pvpPct, atk, def, sta, isShadow, isLegendary, isMega } = stats;
   const sm = isShadow ? 1.2 : 1;
-  if (role === 'raid')    return (atk * 8 + ivPct * 0.4) * sm;
+  const lm = (isLegendary || isMega) ? 1.15 : 1;
+  if (role === 'raid')    return (atk * 8 + ivPct * 0.4) * sm * lm;
   if (role === 'pvp')     return pvpPct;
-  if (role === 'gym')     return def * 7 + sta * 7 + ivPct * 0.3;
-  /* overall */           return ivPct * 0.5 + pvpPct * 0.3 + atk * 1.5 * sm;
+  if (role === 'gym')     return (def * 7 + sta * 7 + ivPct * 0.3) * lm;
+  /* overall */           return (ivPct * 0.5 + pvpPct * 0.3 + atk * 1.5 * sm) * lm;
 }
 
-function readCmpStats(prefix) {
+// ── Compare tab: up to 5 entries ─────────────────────────────────────────────
+const CMP_COLORS = ['#1565c0','#e65100','#2e7d32','#6a1b9a','#c62828'];
+const CMP_MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+let cmpSlots = [];   // active slot indices
+let cmpNextId = 0;   // ever-increasing slot id
+
+function buildEntryHTML(slotId, displayNum) {
+  const color  = CMP_COLORS[(displayNum - 1) % CMP_COLORS.length];
+  const canDel = displayNum > 2;
+  return `<div class="cmp-entry" id="cmp-entry-${slotId}" style="border-color:${color}">
+    <div class="cmp-entry-header">
+      <div class="cmp-entry-label" id="cmp-label-${slotId}" style="color:${color}">Pokémon ${displayNum}</div>
+      ${canDel ? `<button class="cmp-remove-btn" onclick="removeCompareEntry(${slotId})" title="Remove">✕</button>` : ''}
+    </div>
+    <div class="cmp-field-grid">
+      <div class="form-group"><label>Name</label><input type="text" id="cmp-${slotId}-name" placeholder="e.g. Machamp" /></div>
+      <div class="form-group"><label>IV %</label><input type="number" id="cmp-${slotId}-iv" placeholder="0–100" min="0" max="100" /></div>
+      <div class="form-group"><label>ATK</label><input type="number" id="cmp-${slotId}-atk" placeholder="0–15" min="0" max="15" /></div>
+      <div class="form-group"><label>DEF</label><input type="number" id="cmp-${slotId}-def" placeholder="0–15" min="0" max="15" /></div>
+      <div class="form-group"><label>STA</label><input type="number" id="cmp-${slotId}-sta" placeholder="0–15" min="0" max="15" /></div>
+      <div class="form-group"><label>PvP %</label><input type="number" id="cmp-${slotId}-pvp" placeholder="0–100" min="0" max="100" /></div>
+      <div class="form-group"><label>CP</label><input type="number" id="cmp-${slotId}-cp" placeholder="CP" min="0" /></div>
+      <div class="form-group"><label>Level</label><input type="number" id="cmp-${slotId}-lv" placeholder="1–50" min="1" max="50" step="0.5" /></div>
+    </div>
+    <div class="cmp-toggle-row">
+      <label class="cmp-toggle-item"><input type="checkbox" id="cmp-${slotId}-shadow" /> Shadow</label>
+      <label class="cmp-toggle-item"><input type="checkbox" id="cmp-${slotId}-leg" /> Legendary</label>
+      <label class="cmp-toggle-item"><input type="checkbox" id="cmp-${slotId}-mega" /> Mega</label>
+      <label class="cmp-toggle-item"><input type="checkbox" id="cmp-${slotId}-shiny" /> Shiny</label>
+      <label class="cmp-toggle-item"><input type="checkbox" id="cmp-${slotId}-unev" /> Unevolved</label>
+    </div>
+  </div>`;
+}
+
+function addCompareEntry() {
+  if (cmpSlots.length >= 5) return;
+  const slotId = cmpNextId++;
+  cmpSlots.push(slotId);
+  const displayNum = cmpSlots.length;
+  const container = document.getElementById('cmp-entries');
+  const div = document.createElement('div');
+  div.innerHTML = buildEntryHTML(slotId, displayNum);
+  container.appendChild(div.firstElementChild);
+  document.getElementById('cmp-add-btn').style.display = cmpSlots.length >= 5 ? 'none' : '';
+}
+
+function removeCompareEntry(slotId) {
+  if (cmpSlots.length <= 2) return;
+  cmpSlots = cmpSlots.filter(s => s !== slotId);
+  const el = document.getElementById(`cmp-entry-${slotId}`);
+  if (el) el.remove();
+  // Recolor labels to match new positions
+  cmpSlots.forEach((s, i) => {
+    const label = document.getElementById(`cmp-label-${s}`);
+    if (label) { label.textContent = `Pokémon ${i + 1}`; label.style.color = CMP_COLORS[i % CMP_COLORS.length]; }
+    const entry = document.getElementById(`cmp-entry-${s}`);
+    if (entry) entry.style.borderColor = CMP_COLORS[i % CMP_COLORS.length];
+  });
+  document.getElementById('cmp-add-btn').style.display = cmpSlots.length >= 5 ? 'none' : '';
+}
+
+function readEntryStats(slotId) {
+  const g = id => { const el = document.getElementById(`cmp-${slotId}-${id}`); return el ? el.value : ''; };
+  const c = id => { const el = document.getElementById(`cmp-${slotId}-${id}`); return el ? el.checked : false; };
+  const rawName = g('name').trim();
+  const key = normName(rawName);
+  let rarity = 'common';
+  if (RARITY_MAP[key] !== undefined) rarity = RARITY_MAP[key] === 'r' ? 'rare' : 'common';
+  else if (POKEMON_DB[key]) rarity = POKEMON_DB[key].rare ? 'rare' : 'common';
   return {
-    name:     getVal(`cmp-${prefix}-name`).trim() || prefix.toUpperCase(),
-    ivPct:    parseFloat(getVal(`cmp-${prefix}-iv`))  || 0,
-    atk:      parseInt(getVal(`cmp-${prefix}-atk`))   || 0,
-    def:      parseInt(getVal(`cmp-${prefix}-def`))   || 0,
-    sta:      parseInt(getVal(`cmp-${prefix}-sta`))   || 0,
-    pvpPct:   parseFloat(getVal(`cmp-${prefix}-pvp`)) || 0,
-    isShadow: getChk(`cmp-${prefix}-shadow`),
+    name:        rawName,
+    ivPct:       parseFloat(g('iv'))  || 0,
+    atk:         parseInt(g('atk'))   || 0,
+    def:         parseInt(g('def'))   || 0,
+    sta:         parseInt(g('sta'))   || 0,
+    pvpPct:      parseFloat(g('pvp')) || 0,
+    cp:          parseInt(g('cp'))    || 0,
+    level:       parseFloat(g('lv'))  || 0,
+    isShadow:    c('shadow'),
+    isLegendary: c('leg'),
+    isMega:      c('mega'),
+    isShiny:     c('shiny'),
+    isUnev:      c('unev'),
+    hasExclMove: false,
+    rarity,
   };
 }
 
 function runCompare() {
-  const a = readCmpStats('a');
-  const b = readCmpStats('b');
-  if (!a.name.trim() || !b.name.trim()) { alert('Please enter names for both Pokémon.'); return; }
+  const allStats = cmpSlots.map(s => readEntryStats(s));
+  const valid = allStats.filter(s => s.name.trim());
+  if (valid.length < 2) { alert('Please fill in at least 2 Pokémon names to compare.'); return; }
 
-  const roles = [
-    { key:'raid',    label:'Raid Attacker', icon:'⚔️' },
-    { key:'pvp',     label:'PvP',           icon:'🏆' },
-    { key:'gym',     label:'Gym Defender',  icon:'🛡️' },
-    { key:'overall', label:'Overall',       icon:'⭐' },
-  ];
+  const ranked = valid.map(stats => {
+    const result = decide(stats);
+    return {
+      stats,
+      result,
+      overall: scoreRole(stats, 'overall'),
+      raid:    scoreRole(stats, 'raid'),
+      pvp:     scoreRole(stats, 'pvp'),
+      gym:     scoreRole(stats, 'gym'),
+    };
+  }).sort((a, b) => b.overall - a.overall);
 
-  let aWins = 0, bWins = 0;
-  let gridHTML = '';
-
-  roles.forEach(role => {
-    const sa = scoreRole(a, role.key);
-    const sb = scoreRole(b, role.key);
-    const diff = Math.abs(sa - sb);
-    const thresh = role.key === 'pvp' ? 2 : 5;
-    let cls = 'tie', winnerName = 'Tie', margin = 'Nearly equal';
-
-    if (diff > thresh) {
-      if (sa > sb) {
-        cls = 'winner-a'; winnerName = a.name; aWins++;
-        margin = role.key === 'pvp' ? `+${diff.toFixed(1)}% PvP rank` : `Score ${sa.toFixed(0)} vs ${sb.toFixed(0)}`;
-      } else {
-        cls = 'winner-b'; winnerName = b.name; bWins++;
-        margin = role.key === 'pvp' ? `+${diff.toFixed(1)}% PvP rank` : `Score ${sb.toFixed(0)} vs ${sa.toFixed(0)}`;
-      }
-    }
-    gridHTML += `
-      <div class="compare-role-card ${cls}">
-        <div class="role-label">${role.icon} ${role.label}</div>
-        <div class="winner-name" title="${esc(winnerName)}">${esc(winnerName)}</div>
-        <div class="winner-margin">${esc(margin)}</div>
+  // Ranked list
+  let rankedHTML = '<div class="cmp-ranked-list">';
+  ranked.forEach((r, i) => {
+    const { stats, result } = r;
+    const cat = CATEGORIES[result.category] || { label: result.category, icon:'?' };
+    const tags = getSuggestedTags(stats, result).slice(0, 6)
+      .map(t => `<span class="tag-chip tag-chip-${t.type}" style="font-size:0.7rem;padding:2px 9px;">${esc(t.label)}</span>`).join('');
+    rankedHTML += `
+      <div class="cmp-rank-item ${i === 0 ? 'rank-1' : 'rank-other'}">
+        <div class="cmp-rank-badge">${CMP_MEDALS[i] || `${i+1}.`}</div>
+        <div class="cmp-rank-info">
+          <div class="cmp-rank-name">${esc(stats.name)}</div>
+          <div class="cmp-rank-score">${cat.icon} ${cat.label} · Score ${r.overall.toFixed(0)}</div>
+          <div class="cmp-rank-tags">${tags}</div>
+        </div>
       </div>`;
   });
+  rankedHTML += '</div>';
 
-  let verdict;
-  if (aWins > bWins) {
-    verdict = `<strong>${esc(a.name)}</strong> wins overall (${aWins}–${bWins} role wins). Keep <strong>${esc(a.name)}</strong>${a.isShadow ? ' — do not purify the Shadow' : ''} and consider transferring ${esc(b.name)} for candy.`;
-  } else if (bWins > aWins) {
-    verdict = `<strong>${esc(b.name)}</strong> wins overall (${bWins}–${aWins} role wins). Keep <strong>${esc(b.name)}</strong>${b.isShadow ? ' — do not purify the Shadow' : ''} and consider transferring ${esc(a.name)} for candy.`;
-  } else {
-    verdict = `These two Pokémon are evenly matched across roles. Keep the one with better IVs for your primary use case, or hold both if storage allows.`;
-  }
+  // Best for each role
+  const bRaid = ranked.reduce((a,b) => a.raid >= b.raid ? a : b);
+  const bPvp  = ranked.reduce((a,b) => a.pvp  >= b.pvp  ? a : b);
+  const bGym  = ranked.reduce((a,b) => a.gym  >= b.gym  ? a : b);
+  const rolesHTML = `<div class="cmp-role-section">
+    <div class="cmp-role-card">
+      <div class="cmp-role-icon">⚔️</div>
+      <div class="cmp-role-label">Best Raider</div>
+      <div class="cmp-role-winner" title="${esc(bRaid.stats.name)}">${esc(bRaid.stats.name)}</div>
+      <div class="cmp-role-score">Score ${bRaid.raid.toFixed(0)}</div>
+    </div>
+    <div class="cmp-role-card">
+      <div class="cmp-role-icon">🏆</div>
+      <div class="cmp-role-label">Best PvP</div>
+      <div class="cmp-role-winner" title="${esc(bPvp.stats.name)}">${esc(bPvp.stats.name)}</div>
+      <div class="cmp-role-score">PvP ${bPvp.pvp.toFixed(0)}%</div>
+    </div>
+    <div class="cmp-role-card">
+      <div class="cmp-role-icon">🛡️</div>
+      <div class="cmp-role-label">Best Defender</div>
+      <div class="cmp-role-winner" title="${esc(bGym.stats.name)}">${esc(bGym.stats.name)}</div>
+      <div class="cmp-role-score">Score ${bGym.gym.toFixed(0)}</div>
+    </div>
+  </div>`;
 
-  document.getElementById('cmp-res-title').textContent = `${a.name} vs ${b.name}`;
-  document.getElementById('cmp-grid').innerHTML = gridHTML;
-  document.getElementById('cmp-verdict').innerHTML = verdict;
+  const winner = ranked[0].stats.name;
+  document.getElementById('cmp-res-title').textContent = `🏆 ${winner} wins!`;
+  document.getElementById('cmp-ranked').innerHTML = rankedHTML;
+  document.getElementById('cmp-roles').innerHTML = rolesHTML;
   document.getElementById('compare-results').style.display = 'block';
   document.getElementById('compare-results').scrollIntoView({ behavior:'smooth' });
 }
@@ -1830,6 +1925,9 @@ function replayHistory(index) {
   switchTab('analyze');
   renderResult(entry, result);
 }
+
+// Seed 2 blank entries into the compare tab on load
+(function initCompare() { addCompareEntry(); addCompareEntry(); })();
 </script>
 </body>
 </html>
