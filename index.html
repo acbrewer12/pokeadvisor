@@ -1204,35 +1204,168 @@ function updateBar(stat) {
   document.getElementById('bar-'+stat).style.width = (val/15*100)+'%';
 }
 
-function onNameInput(val) {
-  const key     = normName(val);
-  const rarMsg  = document.getElementById('rarity-auto-msg');
-  const evoMsg  = document.getElementById('evo-auto-msg');
-  if (!val.trim()) {
-    rarMsg.textContent = ''; rarMsg.className = 'rarity-auto';
-    evoMsg.textContent = ''; evoMsg.className = 'rarity-auto';
-    return;
+// ── PokeAPI auto-detection ──────────────────────────────────────────────────
+// Pokémon not flagged legendary/mythical by API that are still rare in GO
+const PSEUDO_LEGENDARY_SET = new Set([
+  // Gen 1
+  'dragonite','aerodactyl','lapras','snorlax','porygon','chansey','blissey',
+  // Gen 2
+  'tyranitar','togekiss','blissey','espeon','umbreon',
+  // Gen 3
+  'metagross','salamence','flygon','milotic','tropius','absol',
+  // Gen 4
+  'garchomp','lucario','toxicroak','hippowdon',
+  // Gen 5
+  'hydreigon','volcarona','haxorus','chandelure',
+  // Gen 6
+  'goodra','noivern','tyrantrum','aurorus',
+  // Gen 7
+  'kommo-o','dhelmise','turtonator',
+  // Gen 8
+  'dragapult','frosmoth','obstagoon',
+  // Gen 9
+  'baxcalibur','palafin','iron bundle','great tusk','iron treads',
+  // Starter finals (rare in GO)
+  'venusaur','charizard','blastoise',
+  'meganium','typhlosion','feraligatr',
+  'sceptile','blaziken','swampert',
+  'torterra','infernape','empoleon',
+  'serperior','emboar','samurott',
+  'chesnaught','delphox','greninja',
+  'decidueye','incineroar','primarina',
+  'rillaboom','cinderace','inteleon',
+  'meowscarada','skeledirge','quaquaval',
+]);
+
+const POKEAPI_LS_KEY = 'pokeadvisor_api_cache_v2';
+let _pokeApiMemCache = null;
+function _getApiCache() {
+  if (!_pokeApiMemCache) {
+    try { _pokeApiMemCache = JSON.parse(localStorage.getItem(POKEAPI_LS_KEY) || '{}'); }
+    catch { _pokeApiMemCache = {}; }
   }
+  return _pokeApiMemCache;
+}
+function _saveApiCache() {
+  try { localStorage.setItem(POKEAPI_LS_KEY, JSON.stringify(_pokeApiMemCache)); } catch {}
+}
+
+// Convert user-typed name to PokeAPI species slug (strips regional prefix)
+function _toSpeciesSlug(raw) {
+  let n = raw.toLowerCase().trim()
+             .replace(/^(alolan|galarian|hisuian|paldean)\s+/, '')
+             .replace(/\s+/g, '-')
+             .replace(/['']/g, '')
+             .replace(/♀/g, '-f').replace(/♂/g, '-m')
+             .replace(/\.$/, '');
+  return n;
+}
+
+// Convert user-typed name to PokeAPI pokemon slug (keeps regional suffix)
+function _toPokemonSlug(raw) {
+  let n = raw.toLowerCase().trim();
+  const prefixMap = { 'alolan ': '-alola', 'galarian ': '-galar', 'hisuian ': '-hisui', 'paldean ': '-paldea' };
+  for (const [pre, suf] of Object.entries(prefixMap)) {
+    if (n.startsWith(pre)) return n.slice(pre.length).replace(/\s+/g, '-') + suf;
+  }
+  return n.replace(/\s+/g, '-').replace(/['']/g, '')
+          .replace(/♀/g, '-f').replace(/♂/g, '-m').replace(/\.$/, '');
+}
+
+// Walk evolution chain tree, return 'base' | 'mid' | 'final'
+function _evoStage(chain, candidates) {
+  function walk(node, depth) {
+    if (candidates.has(node.species.name)) {
+      return node.evolves_to.length > 0 ? (depth === 0 ? 'base' : 'mid') : 'final';
+    }
+    for (const next of node.evolves_to) {
+      const r = walk(next, depth + 1);
+      if (r) return r;
+    }
+    return null;
+  }
+  return walk(chain, 0) || 'final';
+}
+
+function _applyPokeData(raw, data) {
+  const rarMsg = document.getElementById('rarity-auto-msg');
+  const evoMsg = document.getElementById('evo-auto-msg');
+  if (!rarMsg) return;
+  document.getElementById('poke-rarity').value = data.isRare ? 'rare' : 'common';
+  rarMsg.textContent = data.isLegendary ? '✓ Auto-detected: Legendary'
+                     : data.isMythical  ? '✓ Auto-detected: Mythical'
+                     : data.isRare      ? '✓ Auto-detected: Rare'
+                     :                    '✓ Auto-detected: Common';
+  rarMsg.className = 'rarity-auto detected';
+  const isUnev = data.stage !== 'final';
+  document.getElementById('is-unevolved').checked = isUnev;
+  evoMsg.textContent = data.stage === 'base' ? '✓ Auto-detected: Base form (unevolved)'
+                     : data.stage === 'mid'  ? '✓ Auto-detected: Mid evolution'
+                     :                         '✓ Auto-detected: Final evolution';
+  evoMsg.className = 'rarity-auto detected';
+}
+
+function _applyStaticFallback(raw) {
+  const key    = normName(raw);
+  const rarMsg = document.getElementById('rarity-auto-msg');
+  const evoMsg = document.getElementById('evo-auto-msg');
+  if (!rarMsg) return;
   let isRare;
-  if (RARITY_MAP[key] !== undefined) {
-    isRare = RARITY_MAP[key] === 'r';
-  } else if (POKEMON_DB[key] !== undefined) {
-    isRare = POKEMON_DB[key].rare;
-  } else {
+  if (RARITY_MAP[key] !== undefined)      isRare = RARITY_MAP[key] === 'r';
+  else if (POKEMON_DB[key] !== undefined) isRare = POKEMON_DB[key].rare;
+  else {
     rarMsg.textContent = 'Not recognized — set rarity manually.';
     rarMsg.className = 'rarity-auto';
     evoMsg.textContent = ''; evoMsg.className = 'rarity-auto';
     return;
   }
-  // Rarity
   document.getElementById('poke-rarity').value = isRare ? 'rare' : 'common';
-  rarMsg.textContent = isRare ? '✓ Auto-detected: Rare / Legendary' : '✓ Auto-detected: Common';
+  rarMsg.textContent = isRare ? '✓ Auto-detected: Rare (offline)' : '✓ Auto-detected: Common (offline)';
   rarMsg.className = 'rarity-auto detected';
-  // Evolution stage
   const isUnev = NON_FINAL_SET.has(key);
   document.getElementById('is-unevolved').checked = isUnev;
-  evoMsg.textContent = isUnev ? '✓ Auto-detected: Unevolved' : '✓ Auto-detected: Final Evolution';
+  evoMsg.textContent = isUnev ? '✓ Auto-detected: Unevolved (offline)' : '✓ Auto-detected: Final Evolution (offline)';
   evoMsg.className = 'rarity-auto detected';
+}
+
+async function _fetchPokeApiData(raw) {
+  const speciesSlug = _toSpeciesSlug(raw);
+  const pokemonSlug = _toPokemonSlug(raw);
+  const cache = _getApiCache();
+  if (cache[speciesSlug]) { _applyPokeData(raw, cache[speciesSlug]); return; }
+  try {
+    const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${encodeURIComponent(speciesSlug)}/`);
+    if (!specRes.ok) { _applyStaticFallback(raw); return; }
+    const species = await specRes.json();
+    const evoRes  = await fetch(species.evolution_chain.url);
+    const evoData = await evoRes.json();
+    // Build candidate name set: species slug, pokemon slug, API species name
+    const candidates = new Set([speciesSlug, pokemonSlug, species.name]);
+    const stage   = _evoStage(evoData.chain, candidates);
+    const key     = normName(raw);
+    const isRare  = species.is_legendary || species.is_mythical || PSEUDO_LEGENDARY_SET.has(key);
+    const data    = { isLegendary: species.is_legendary, isMythical: species.is_mythical, isRare, stage };
+    cache[speciesSlug] = data;
+    _saveApiCache();
+    _applyPokeData(raw, data);
+  } catch {
+    _applyStaticFallback(raw);
+  }
+}
+
+let _nameDebounceTimer = null;
+function onNameInput(val) {
+  const rarMsg = document.getElementById('rarity-auto-msg');
+  const evoMsg = document.getElementById('evo-auto-msg');
+  clearTimeout(_nameDebounceTimer);
+  if (!val.trim()) {
+    rarMsg.textContent = ''; rarMsg.className = 'rarity-auto';
+    evoMsg.textContent = ''; evoMsg.className = 'rarity-auto';
+    return;
+  }
+  rarMsg.textContent = '⏳ Looking up…'; rarMsg.className = 'rarity-auto';
+  evoMsg.textContent = '';               evoMsg.className = 'rarity-auto';
+  _nameDebounceTimer = setTimeout(() => _fetchPokeApiData(val.trim()), 420);
 }
 
 function onCpInput(val) {
