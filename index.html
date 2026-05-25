@@ -136,6 +136,7 @@
     .badge-shiny      { background: #fff9c4; color: #e65100; }
     .badge-legendary  { background: #ede7f6; color: #4527a0; }
     .badge-exclusive  { background: #fce4ec; color: #ad1457; }
+    .badge-mega       { background: #e8f5e9; color: #1b5e20; }
 
     .toggle-row-3 {
       display: grid; grid-template-columns: 1fr 1fr 1fr;
@@ -343,6 +344,16 @@
           <span class="toggle-label">🔒 Exclusive Move?</span>
           <label class="toggle-switch">
             <input type="checkbox" id="has-excl-move" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="toggle-row" style="margin-top:11px;">
+        <div class="toggle-group">
+          <span class="toggle-label">🌀 Mega Evolution?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-mega" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -608,7 +619,7 @@ const CATEGORIES = {
   KEEP:          { label:'Keep / Hold',     icon:'📦' },
 };
 
-// Public entry point — normalises legendary flag then applies post-rule overrides
+// Public entry point — normalises flags then applies post-rule overrides
 function decide(rawInput) {
   const input = { ...rawInput };
   if (input.isLegendary) {
@@ -616,13 +627,35 @@ function decide(rawInput) {
     input.rarity = 'rare';  // always treat as rare
   }
 
-  // Legendary + 85 %+ IV → direct Raid Attacker path; CP is irrelevant for Legendaries
+  // Mega Evolution → always Raid Attacker, regardless of all other stats
+  if (input.isMega) {
+    return applySpecialOverrides(megaResult(input), rawInput);
+  }
+
+  // Legendary + 85%+ IV → direct Raid Attacker path; CP is irrelevant for Legendaries
   if (input.isLegendary && input.ivPct >= 85) {
     return applySpecialOverrides(legendaryHighIVResult(input), rawInput);
   }
 
   const result = _decideCore(input);
   return applySpecialOverrides(result, rawInput);
+}
+
+function megaResult({ name, ivPct, atk, isShadow }) {
+  const reasons = [], steps = [];
+  reasons.push({ icon:'🌀', text:`Mega Pokémon are the most powerful raid attackers in the game — ${esc(name)} belongs in every raid rotation that matches its type.` });
+  reasons.push({ icon:'💥', text:'Mega Evolution provides a damage boost to ALL teammates in the same raid whose moves share the Mega\'s type — even if it faints early, the party boost persists.' });
+  if (atk >= 13) reasons.push({ icon:'⚔️', text:`ATK ${atk}/15 is excellent — high ATK IV amplifies the Mega\'s already outstanding base stats.` });
+  if (ivPct < 70) reasons.push({ icon:'ℹ️', text:`Overall IV of ${ivPct}% is lower, but Mega Pokémon are worth using regardless — the team boost applies at any IV level.` });
+  if (isShadow) reasons.push({ icon:'👤', text:'Shadow Mega Pokémon deal even more personal damage, though the team boost is the same as the standard Mega form.' });
+
+  steps.push(`Favorite ${esc(name)} immediately so it stays safe in storage.`);
+  steps.push('Accumulate enough Mega Energy to Mega Evolve before joining the raid lobby — you cannot Mega Evolve mid-raid.');
+  steps.push('Mega Evolve right before entering the raid so the bonus is active from the first turn.');
+  steps.push('Communicate to teammates: move the same type as your Mega to maximise the shared damage bonus.');
+  steps.push('Use Fast TM / Charged TM to equip the best raid moveset (shown below).');
+  steps.push(`Power up ${esc(name)} to Level 40 or higher — a stronger Mega deals more personal damage and sets a higher floor for the party boost.`);
+  return { category: 'RAID', reasons, steps };
 }
 
 function legendaryHighIVResult({ name, ivPct, pvpPct, atk, isShadow }) {
@@ -896,6 +929,7 @@ function analyze() {
   const isShiny     = getChk('is-shiny');
   const isLegendary = getChk('is-legendary');
   const hasExclMove = getChk('has-excl-move');
+  const isMega      = getChk('is-mega');
 
   if (!name)                                     { alert('Please enter a Pokémon name.'); return; }
   if (isNaN(ivPct)||ivPct<0||ivPct>100)         { alert('Overall IV % must be 0–100.'); return; }
@@ -903,7 +937,7 @@ function analyze() {
   if ([atk,def,sta].some(v=>isNaN(v)||v<0||v>15)) { alert('Individual IVs must be 0–15.'); return; }
   if (isNaN(level)||level<1||level>50)           { alert('Level must be 1–50.'); return; }
 
-  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isShiny, isLegendary, hasExclMove };
+  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isShiny, isLegendary, hasExclMove, isMega };
   const result = decide(input);
   renderResult(input, result);
   saveToHistory(input, result);
@@ -911,7 +945,7 @@ function analyze() {
 
 function renderResult(input, result) {
   const { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity,
-          isShiny, isLegendary, hasExclMove } = input;
+          isShiny, isLegendary, hasExclMove, isMega } = input;
   const { category, reasons, steps } = result;
   const cat    = CATEGORIES[category];
   const league = cp ? suggestLeague(cp) : null;
@@ -925,6 +959,7 @@ function renderResult(input, result) {
     isUnev        ? `<span class="badge badge-unevolved">🌀 Unevolved</span>`   : '',
     isShiny       ? `<span class="badge badge-shiny">✨ Shiny</span>`            : '',
     isLegendary   ? `<span class="badge badge-legendary">👑 Legendary</span>`   : '',
+    isMega        ? `<span class="badge badge-mega">🌀 Mega</span>`              : '',
     hasExclMove   ? `<span class="badge badge-exclusive">🔒 Exclusive Move</span>` : '',
     rarity==='rare' ? `<span class="badge badge-rare">🌟 Rare</span>` : `<span class="badge badge-common">⬛ Common</span>`,
     isLegendary   ? `<span class="badge badge-league">🔴 Master League</span>`
