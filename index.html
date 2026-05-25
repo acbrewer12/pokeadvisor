@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PokeAdvisor — Pokémon GO Companion</title>
+  <style>
+    :root {
+      --red: #e53935;
+      --red-dark: #b71c1c;
+      --red-light: #ffebee;
+      --yellow: #fdd835;
+      --blue: #1565c0;
+      --blue-light: #e3f2fd;
+      --green: #2e7d32;
+      --green-light: #e8f5e9;
+      --orange: #e65100;
+      --orange-light: #fff3e0;
+      --purple: #6a1b9a;
+      --purple-light: #f3e5f5;
+      --gray: #616161;
+      --gray-light: #f5f5f5;
+      --shadow: 0 4px 20px rgba(0,0,0,0.12);
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #e53935 0%, #b71c1c 50%, #1565c0 100%);
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    .app-wrapper {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+      color: white;
+    }
+
+    header .logo {
+      font-size: 2.8rem;
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+
+    header p {
+      font-size: 0.95rem;
+      opacity: 0.85;
+      margin-top: 4px;
+    }
+
+    .card {
+      background: white;
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #212121;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+
+    label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #424242;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    select {
+      border: 2px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 1rem;
+      color: #212121;
+      transition: border-color 0.2s;
+      outline: none;
+      background: white;
+      width: 100%;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    select:focus {
+      border-color: var(--red);
+    }
+
+    .iv-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+    }
+
+    .iv-display {
+      text-align: center;
+    }
+
+    .iv-display .iv-val {
+      font-size: 1.4rem;
+      font-weight: 800;
+      color: var(--red);
+    }
+
+    .iv-bar-track {
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-top: 4px;
+      overflow: hidden;
+    }
+
+    .iv-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #fdd835, #e53935);
+      transition: width 0.4s ease;
+    }
+
+    .toggle-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .toggle-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--gray-light);
+      border-radius: 10px;
+      padding: 12px 16px;
+    }
+
+    .toggle-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #424242;
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+      position: absolute;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      inset: 0;
+      background: #bdbdbd;
+      border-radius: 24px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .toggle-slider::before {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      left: 3px;
+      top: 3px;
+      background: white;
+      border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+
+    .toggle-switch input:checked + .toggle-slider {
+      background: var(--red);
+    }
+
+    .toggle-switch input:checked + .toggle-slider::before {
+      transform: translateX(20px);
+    }
+
+    .btn-analyze {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, var(--red) 0%, var(--red-dark) 100%);
+      color: white;
+      font-size: 1.1rem;
+      font-weight: 700;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      letter-spacing: 0.3px;
+      transition: transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 14px rgba(229,57,53,0.5);
+    }
+
+    .btn-analyze:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(229,57,53,0.55);
+    }
+
+    .btn-analyze:active {
+      transform: translateY(0);
+    }
+
+    /* Results */
+    #results {
+      display: none;
+    }
+
+    .result-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .category-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+
+    .pokemon-name-result {
+      font-size: 1.6rem;
+      font-weight: 800;
+      color: #212121;
+      line-height: 1.1;
+    }
+
+    .pokemon-meta {
+      font-size: 0.85rem;
+      color: #757575;
+      margin-top: 4px;
+    }
+
+    .category-TRANSFER      { background: #ffebee; color: #c62828; }
+    .category-RAID          { background: #fff3e0; color: #e65100; }
+    .category-DEFENDER      { background: #e8f5e9; color: #2e7d32; }
+    .category-PVP_EXCELLENT { background: #e3f2fd; color: #1565c0; }
+    .category-PVP_DECENT    { background: #e8eaf6; color: #283593; }
+    .category-PVP_SKIP      { background: #f3e5f5; color: #6a1b9a; }
+    .category-SHADOW_KEEP   { background: #fce4ec; color: #880e4f; }
+    .category-PURIFY        { background: #e8f5e9; color: #1b5e20; }
+    .category-EVOLVE        { background: #fff8e1; color: #f57f17; }
+    .category-LUCKY_TRADE   { background: #e0f7fa; color: #006064; }
+    .category-KEEP          { background: #f5f5f5; color: #424242; }
+
+    .section-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #9e9e9e;
+      margin-bottom: 8px;
+    }
+
+    .reasons-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .reasons-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 0.95rem;
+      color: #424242;
+      line-height: 1.4;
+    }
+
+    .reason-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .steps-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .steps-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      font-size: 0.95rem;
+      color: #424242;
+      line-height: 1.4;
+    }
+
+    .step-num {
+      width: 24px;
+      height: 24px;
+      background: var(--red);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .divider {
+      height: 1px;
+      background: #f0f0f0;
+      margin: 20px 0;
+    }
+
+    .stat-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 16px;
+    }
+
+    .stat-chip {
+      background: var(--gray-light);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: #424242;
+    }
+
+    .stat-chip span {
+      color: var(--red);
+    }
+
+    .pvp-meter {
+      margin-top: 16px;
+    }
+
+    .pvp-meter-bar {
+      height: 8px;
+      background: #e0e0e0;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-top: 6px;
+    }
+
+    .pvp-meter-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s ease;
+    }
+
+    .pvp-excellent { background: linear-gradient(90deg, #1565c0, #42a5f5); }
+    .pvp-decent    { background: linear-gradient(90deg, #283593, #7986cb); }
+    .pvp-skip      { background: linear-gradient(90deg, #757575, #bdbdbd); }
+
+    .badge-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .badge-shadow { background: #fce4ec; color: #880e4f; }
+    .badge-unevolved { background: #fff8e1; color: #f57f17; }
+    .badge-rare { background: #e0f7fa; color: #006064; }
+    .badge-common { background: #f3e5f5; color: #6a1b9a; }
+
+    .btn-reset {
+      background: none;
+      border: 2px solid #e0e0e0;
+      color: #616161;
+      font-size: 0.9rem;
+      font-weight: 600;
+      padding: 10px 20px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    .btn-reset:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    .rare-pokemon-hint {
+      font-size: 0.8rem;
+      color: #9e9e9e;
+      margin-top: 6px;
+    }
+
+    @media (max-width: 520px) {
+      .form-grid { grid-template-columns: 1fr; }
+      .toggle-row { grid-template-columns: 1fr; }
+      .iv-row { grid-template-columns: 1fr 1fr 1fr; }
+      header h1 { font-size: 1.6rem; }
+      .card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-wrapper">
+
+  <header>
+    <div class="logo">⚡</div>
+    <h1>PokeAdvisor</h1>
+    <p>Enter your Pokémon's Poke Genie stats to get a recommendation</p>
+  </header>
+
+  <!-- Input Card -->
+  <div class="card" id="input-card">
+    <div class="card-title">⚙️ Enter Pokémon Stats</div>
+
+    <div class="form-grid">
+      <!-- Pokémon Name -->
+      <div class="form-group full">
+        <label>Pokémon Name</label>
+        <input type="text" id="poke-name" placeholder="e.g. Garchomp" autocomplete="off" />
+      </div>
+
+      <!-- IV % -->
+      <div class="form-group">
+        <label>Overall IV %</label>
+        <input type="number" id="iv-overall" placeholder="0–100" min="0" max="100" />
+      </div>
+
+      <!-- PvP % -->
+      <div class="form-group">
+        <label>PvP %</label>
+        <input type="number" id="pvp-pct" placeholder="0–100" min="0" max="100" />
+      </div>
+
+      <!-- Individual IVs -->
+      <div class="form-group full">
+        <label>Individual IVs (0–15)</label>
+        <div class="iv-row">
+          <div>
+            <input type="number" id="iv-atk" placeholder="ATK" min="0" max="15" />
+            <div class="iv-display">
+              <div class="iv-bar-track"><div class="iv-bar-fill" id="bar-atk" style="width:0%"></div></div>
+            </div>
+          </div>
+          <div>
+            <input type="number" id="iv-def" placeholder="DEF" min="0" max="15" />
+            <div class="iv-display">
+              <div class="iv-bar-track"><div class="iv-bar-fill" id="bar-def" style="width:0%"></div></div>
+            </div>
+          </div>
+          <div>
+            <input type="number" id="iv-sta" placeholder="STA" min="0" max="15" />
+            <div class="iv-display">
+              <div class="iv-bar-track"><div class="iv-bar-fill" id="bar-sta" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Level -->
+      <div class="form-group">
+        <label>Current Level</label>
+        <input type="number" id="poke-level" placeholder="1–50" min="1" max="50" />
+      </div>
+
+      <!-- Rarity -->
+      <div class="form-group">
+        <label>Rarity</label>
+        <select id="poke-rarity">
+          <option value="common">Common</option>
+          <option value="rare">Rare / Legendary</option>
+        </select>
+        <div class="rare-pokemon-hint">Rare = Legendaries, pseudo-legendaries, event-only</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px;">
+      <div class="section-label" style="margin-bottom: 12px;">Flags</div>
+      <div class="toggle-row">
+        <div class="toggle-group">
+          <span class="toggle-label">Shadow?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-shadow" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-group">
+          <span class="toggle-label">Unevolved?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-unevolved" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px;">
+      <button class="btn-analyze" onclick="analyze()">Analyze Pokémon →</button>
+    </div>
+  </div>
+
+  <!-- Results Card -->
+  <div class="card" id="results">
+    <div class="result-header">
+      <div>
+        <div class="pokemon-name-result" id="res-name">—</div>
+        <div class="pokemon-meta" id="res-meta">—</div>
+        <div class="badge-row" id="res-badges"></div>
+      </div>
+    </div>
+
+    <div id="res-category-badge" style="margin-bottom: 16px;"></div>
+
+    <div class="divider"></div>
+
+    <div class="section-label">Why this recommendation</div>
+    <ul class="reasons-list" id="res-reasons"></ul>
+
+    <div class="divider"></div>
+
+    <div class="section-label">What to do — step by step</div>
+    <ol class="steps-list" id="res-steps"></ol>
+
+    <div class="stat-chips" id="res-stats"></div>
+
+    <div style="margin-top: 24px;">
+      <button class="btn-reset" onclick="reset()">← Analyze Another Pokémon</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Live IV bars
+['atk', 'def', 'sta'].forEach(stat => {
+  document.getElementById('iv-' + stat).addEventListener('input', function () {
+    const val = Math.min(15, Math.max(0, parseInt(this.value) || 0));
+    document.getElementById('bar-' + stat).style.width = (val / 15 * 100) + '%';
+  });
+});
+
+// ─── Decision Engine ──────────────────────────────────────────────
+function analyze() {
+  const name     = document.getElementById('poke-name').value.trim();
+  const ivPct    = parseFloat(document.getElementById('iv-overall').value);
+  const pvpPct   = parseFloat(document.getElementById('pvp-pct').value);
+  const atk      = parseInt(document.getElementById('iv-atk').value);
+  const def      = parseInt(document.getElementById('iv-def').value);
+  const sta      = parseInt(document.getElementById('iv-sta').value);
+  const level    = parseInt(document.getElementById('poke-level').value);
+  const isShadow = document.getElementById('is-shadow').checked;
+  const isUnev   = document.getElementById('is-unevolved').checked;
+  const rarity   = document.getElementById('poke-rarity').value;
+
+  // Validation
+  if (!name) { alert('Please enter a Pokémon name.'); return; }
+  if (isNaN(ivPct) || ivPct < 0 || ivPct > 100) { alert('Overall IV % must be 0–100.'); return; }
+  if (isNaN(pvpPct) || pvpPct < 0 || pvpPct > 100) { alert('PvP % must be 0–100.'); return; }
+  if ([atk, def, sta].some(v => isNaN(v) || v < 0 || v > 15)) { alert('Individual IVs must be 0–15.'); return; }
+  if (isNaN(level) || level < 1 || level > 50) { alert('Level must be 1–50.'); return; }
+
+  const result = decide({ name, ivPct, pvpPct, atk, def, sta, level, isShadow, isUnev, rarity });
+  renderResult({ name, ivPct, pvpPct, atk, def, sta, level, isShadow, isUnev, rarity }, result);
+}
+
+const CATEGORIES = {
+  TRANSFER:      { label: 'Transfer',        icon: '🗑️' },
+  RAID:          { label: 'Raid Attacker',   icon: '⚔️' },
+  DEFENDER:      { label: 'Gym Defender',    icon: '🛡️' },
+  PVP_EXCELLENT: { label: 'PvP — Excellent', icon: '🏆' },
+  PVP_DECENT:    { label: 'PvP — Decent',    icon: '🎯' },
+  PVP_SKIP:      { label: 'Skip PvP',        icon: '⏭️' },
+  SHADOW_KEEP:   { label: 'Keep Shadow',     icon: '👤' },
+  PURIFY:        { label: 'Purify',          icon: '✨' },
+  EVOLVE:        { label: 'Evolve First',    icon: '🌀' },
+  LUCKY_TRADE:   { label: 'Trade for Lucky', icon: '🍀' },
+  KEEP:          { label: 'Keep / Hold',     icon: '📦' },
+};
+
+function decide({ name, ivPct, pvpPct, atk, def, sta, level, isShadow, isUnev, rarity }) {
+  const reasons = [];
+  const steps   = [];
+  let category;
+
+  const highAtk     = atk >= 13;
+  const highDef     = def >= 13;
+  const highSta     = sta >= 13;
+  const highIV      = ivPct >= 80;
+  const midIV       = ivPct >= 50 && ivPct < 80;
+  const lowIV       = ivPct < 50;
+  const pvpExcellent = pvpPct >= 90;
+  const pvpDecent   = pvpPct >= 70 && pvpPct < 90;
+  const pvpSkip     = pvpPct < 70;
+
+  // ── Rule 1: Very low IV → Transfer (unless rare)
+  if (lowIV && rarity === 'common') {
+    category = 'TRANSFER';
+    reasons.push({ icon: '📉', text: `Overall IV of ${ivPct}% is below 50% — not worth keeping for a common Pokémon.` });
+    if (isShadow) reasons.push({ icon: '👤', text: 'Shadow status does not save a low-IV common from transfer.' });
+    steps.push('Open your Pokémon storage in GO.');
+    steps.push(`Find ${name} and tap it.`);
+    steps.push('Tap the menu (≡) and choose Transfer.');
+    steps.push('Confirm transfer to receive 1 candy.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 2: Rare + low IV → Lucky Trade
+  if (lowIV && rarity === 'rare') {
+    category = 'LUCKY_TRADE';
+    reasons.push({ icon: '🍀', text: `${name} is rare, so even with ${ivPct}% IVs it is trade-worthy for a Lucky Pokémon.` });
+    reasons.push({ icon: '✨', text: 'Lucky trades guarantee 12/12/12 minimum IVs and halve Stardust power-up costs.' });
+    steps.push('Find a Best Friend or long-time trading partner.');
+    steps.push(`Trade your ${name} hoping for a Lucky trade (you both need to be Best Friends for best odds).`);
+    steps.push('If it goes Lucky, power it up cheaply with the halved Stardust cost.');
+    steps.push('If it does not go Lucky, keep trading when the daily limit resets.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 3: Unevolved → Evolve flag (primary action is always evolve first)
+  if (isUnev) {
+    category = 'EVOLVE';
+    reasons.push({ icon: '🌀', text: `${name} is unevolved — evaluate its final form stats before deciding role.` });
+    if (highAtk) reasons.push({ icon: '⚔️', text: `High ATK (${atk}/15) — the evolved form likely has raid potential.` });
+    if (pvpExcellent) reasons.push({ icon: '🏆', text: `Excellent PvP ranking (${pvpPct}%) — a great candidate for PvP after evolving.` });
+    if (isShadow && highAtk) reasons.push({ icon: '👤', text: 'Shadow with high ATK — keep it Shadow when evolving for a 20% damage boost.' });
+
+    steps.push('Check whether you have enough candies to evolve.');
+    if (isShadow) steps.push('Do NOT purify before evolving — Shadow boosts attack by 20%.');
+    steps.push(`Evolve ${name} to its final form.`);
+    steps.push('Re-scan the evolved form in Poke Genie and run it through PokeAdvisor again.');
+    if (pvpExcellent) steps.push('If evolving for PvP, do NOT power up above your target league CP cap first.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 4: Shadow + high ATK + IVs decent → Keep Shadow
+  if (isShadow && highAtk && !lowIV) {
+    category = 'SHADOW_KEEP';
+    reasons.push({ icon: '👤', text: `Shadow Pokémon deal 20% more damage — ${name} with ATK ${atk}/15 is an exceptional raider.` });
+    reasons.push({ icon: '⚔️', text: `High attack IV (${atk}/15) maximizes the Shadow damage multiplier.` });
+    if (highIV) reasons.push({ icon: '💎', text: `${ivPct}% overall IV is excellent — this is a keeper.` });
+
+    steps.push('Tag this Pokémon as a Raid Attacker in your favorite list (★).');
+    steps.push('Do NOT purify — you would lose the 20% Shadow damage bonus.');
+    steps.push(`Power up ${name} to at least Level 40 for raids; Level 50 if you have XL candy.`);
+    steps.push('Use it on raids where its type is super-effective.');
+    if (pvpExcellent) steps.push(`Bonus: ${pvpPct}% PvP ranking — also consider using it in PvP (Shadow Pokémon are viable there).`);
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 5: Shadow + 13+ IVs (all three high) → Purify suggestion
+  if (isShadow && atk >= 13 && def >= 13 && sta >= 13) {
+    category = 'PURIFY';
+    reasons.push({ icon: '✨', text: `All three IVs are 13+ — purifying will push them to 15/15/15 (perfect IVs after purification).` });
+    reasons.push({ icon: '💎', text: 'A purified 100% IV Pokémon is more versatile (cheaper power-up, usable in all leagues).' });
+
+    steps.push('Gather the required Stardust and candy to purify (varies by species).');
+    steps.push(`Purify ${name} — this sets all IVs to 15/15/15.`);
+    steps.push('The purified Pokémon becomes a powerful all-rounder for raids, gyms, and PvP.');
+    steps.push('Tag it as a favorite so you do not accidentally transfer it.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 6: PvP Excellent
+  if (pvpExcellent) {
+    category = 'PVP_EXCELLENT';
+    reasons.push({ icon: '🏆', text: `Outstanding PvP rank of ${pvpPct}% — top-tier for Go Battle League.` });
+    if (highIV) reasons.push({ icon: '💎', text: `${ivPct}% overall IV is also excellent — a true keeper.` });
+    else if (midIV) reasons.push({ icon: 'ℹ️', text: `Overall IV (${ivPct}%) is average — but PvP stat weighting differs from raids, so this ranking is still valid.` });
+
+    steps.push('Favorite this Pokémon immediately so it cannot be transferred by mistake.');
+    steps.push('Determine which league it is best suited for: GL (CP ≤ 1500), UL (CP ≤ 2500), or ML (no cap).');
+    steps.push('Power it up only to the CP cap of your target league — stop just under the limit.');
+    steps.push('Unlock a second Charged Move if the moveset calls for it.');
+    steps.push('Add it to your battle team and practice the matchups.');
+    if (isShadow) steps.push('Shadow Pokémon are viable in PvP — keep it Shadow unless you need the defensive bulk.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 7: PvP Decent
+  if (pvpDecent) {
+    category = 'PVP_DECENT';
+    reasons.push({ icon: '🎯', text: `PvP rank of ${pvpPct}% is decent — a workable battle league candidate.` });
+    reasons.push({ icon: 'ℹ️', text: 'Not top-tier, but usable if you lack a better option for this role.' });
+
+    steps.push('Check if you already have a higher-ranked version of this Pokémon in storage.');
+    steps.push('If no better option exists, favorite and determine its best league (GL / UL / ML).');
+    steps.push('Power up conservatively — only invest Stardust if you plan to use it regularly.');
+    steps.push('Keep an eye out for a 90%+ PvP rank version to replace this one later.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 8: High Attack → Raid Attacker
+  if (highAtk && !lowIV) {
+    category = 'RAID';
+    reasons.push({ icon: '⚔️', text: `High ATK IV (${atk}/15) makes ${name} a strong raid attacker.` });
+    if (highIV) reasons.push({ icon: '💎', text: `Excellent overall IVs (${ivPct}%) — worth powering up for raids.` });
+    else reasons.push({ icon: 'ℹ️', text: `Attack IV matters most for raid damage — overall IV of ${ivPct}% is acceptable.` });
+
+    steps.push('Favorite this Pokémon with a star so it stays safe.');
+    steps.push(`Power up ${name} to Level 40, then to Level 50 if you have XL candy.`);
+    steps.push('Make sure it has the best raid moveset (check a raid guide for this species).');
+    steps.push('Use it in raids where its type is super-effective against the boss.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 9: High Def + Sta → Gym Defender
+  if (highDef && highSta && !lowIV) {
+    category = 'DEFENDER';
+    reasons.push({ icon: '🛡️', text: `High DEF (${def}/15) and STA (${sta}/15) make ${name} a sturdy gym defender.` });
+    reasons.push({ icon: '🏋️', text: 'Bulk stats (DEF × STA) determine how long a defender stays in a gym.' });
+
+    steps.push('Power this Pokémon up to at least Level 30 for gym defense.');
+    steps.push('Place it in a friendly gym, especially one with type diversity to slow down attackers.');
+    steps.push('Feed it berries (Razz, Nanab, Pinap) when it is defending to keep its motivation high.');
+    steps.push('Rotate it out when it returns from a gym — power it back up if needed.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 10: Common + mid IV + skip PvP → Transfer
+  if (rarity === 'common' && midIV && pvpSkip) {
+    category = 'TRANSFER';
+    reasons.push({ icon: '📦', text: `${name} is common with mid-tier IVs (${ivPct}%) and low PvP rank (${pvpPct}%) — better to transfer duplicates.` });
+    reasons.push({ icon: '🍬', text: 'The candy gained goes toward powering up your higher-IV versions.' });
+
+    steps.push('Check if you already have a higher-IV or better-ranked version of this Pokémon.');
+    steps.push('If yes, transfer this one for the candy.');
+    steps.push('If this is your only one, hold it until you catch a better version.');
+    return { category, reasons, steps };
+  }
+
+  // ── Rule 11: Rare + mid/high IV → Keep or Lucky Trade
+  if (rarity === 'rare' && !lowIV) {
+    if (highIV) {
+      category = 'KEEP';
+      reasons.push({ icon: '📦', text: `Rare Pokémon with excellent IVs (${ivPct}%) — definitely worth keeping.` });
+      reasons.push({ icon: '⚔️', text: 'Power it up for raids or PvP based on its highest stat.' });
+      steps.push(`Favorite ${name} to keep it safe.`);
+      steps.push('Power it up for its best role (raids if ATK is highest, PvP if PvP % is solid).');
+    } else {
+      category = 'LUCKY_TRADE';
+      reasons.push({ icon: '🍀', text: `Rare Pokémon with ${ivPct}% IVs — good candidate for a Lucky trade to boost IVs.` });
+      reasons.push({ icon: '✨', text: 'A Lucky version would have at least 12/12/12 IVs and cost half the Stardust to power up.' });
+      steps.push('Hold onto it for now as trade fodder.');
+      steps.push('Trade it with a Best Friend partner when you have the chance.');
+      steps.push('If the trade goes Lucky, the improved IVs make it worth powering up.');
+    }
+    return { category, reasons, steps };
+  }
+
+  // ── Fallback: Keep
+  category = 'KEEP';
+  reasons.push({ icon: '📦', text: `${name} does not clearly fit a single specialized role right now.` });
+  reasons.push({ icon: 'ℹ️', text: `IV: ${ivPct}%, PvP: ${pvpPct}% — hold and reassess as your roster evolves.` });
+  steps.push('Tag it so it does not clutter your storage (use a colored tag).');
+  steps.push('Keep it until you catch a clearly better version or need the space.');
+  steps.push('Re-evaluate when you are more invested in a specific game mode (raids, PvP, etc.).');
+  return { category, reasons, steps };
+}
+
+// ─── Render ───────────────────────────────────────────────────────
+function renderResult(input, result) {
+  const { name, ivPct, pvpPct, atk, def, sta, level, isShadow, isUnev, rarity } = input;
+  const { category, reasons, steps } = result;
+  const cat = CATEGORIES[category];
+
+  document.getElementById('res-name').textContent = name;
+  document.getElementById('res-meta').textContent =
+    `Lvl ${level} · IV ${ivPct}% · PvP ${pvpPct}% · ATK ${atk}/DEF ${def}/STA ${sta}`;
+
+  // Badges
+  const badgeRow = document.getElementById('res-badges');
+  badgeRow.innerHTML = '';
+  if (isShadow) badgeRow.innerHTML += `<span class="badge badge-shadow">👤 Shadow</span>`;
+  if (isUnev) badgeRow.innerHTML += `<span class="badge badge-unevolved">🌀 Unevolved</span>`;
+  if (rarity === 'rare') badgeRow.innerHTML += `<span class="badge badge-rare">🌟 Rare</span>`;
+  if (rarity === 'common') badgeRow.innerHTML += `<span class="badge badge-common">⬛ Common</span>`;
+
+  // Category badge
+  document.getElementById('res-category-badge').innerHTML =
+    `<span class="category-badge category-${category}">${cat.icon} ${cat.label}</span>`;
+
+  // Reasons
+  const rList = document.getElementById('res-reasons');
+  rList.innerHTML = reasons.map(r =>
+    `<li><span class="reason-icon">${r.icon}</span><span>${r.text}</span></li>`
+  ).join('');
+
+  // Steps
+  const sList = document.getElementById('res-steps');
+  sList.innerHTML = steps.map((s, i) =>
+    `<li><span class="step-num">${i + 1}</span><span>${s}</span></li>`
+  ).join('');
+
+  // Stat chips
+  document.getElementById('res-stats').innerHTML = [
+    `<div class="stat-chip">ATK <span>${atk}/15</span></div>`,
+    `<div class="stat-chip">DEF <span>${def}/15</span></div>`,
+    `<div class="stat-chip">STA <span>${sta}/15</span></div>`,
+    `<div class="stat-chip">Overall <span>${ivPct}%</span></div>`,
+    `<div class="stat-chip">PvP <span>${pvpPct}%</span></div>`,
+    `<div class="stat-chip">Lvl <span>${level}</span></div>`,
+  ].join('');
+
+  document.getElementById('input-card').style.display = 'none';
+  document.getElementById('results').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function reset() {
+  document.getElementById('input-card').style.display = 'block';
+  document.getElementById('results').style.display = 'none';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+</body>
+</html>
