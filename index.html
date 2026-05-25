@@ -280,6 +280,27 @@
     .history-item-meta { font-size: 0.76rem; color: #9e9e9e; margin-top: 2px; }
     .history-item-date { font-size: 0.71rem; color: #bdbdbd; flex-shrink: 0; }
 
+    /* ── Candy Tracker ── */
+    .candy-tracker { background:#fff8e1; border:1px solid #ffe082; border-radius:12px; padding:14px 16px; margin-top:4px; }
+    .candy-tracker-loading { color:#888; font-size:14px; padding:8px 0; }
+    .candy-goal-row { display:flex; align-items:baseline; gap:6px; flex-wrap:wrap; margin-bottom:12px; }
+    .candy-goal-num { font-size:22px; font-weight:700; color:#e65100; }
+    .candy-goal-label { font-size:14px; color:#555; }
+    .candy-input-row { display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+    .candy-input-row label { font-size:14px; color:#444; }
+    .candy-input-row input[type=number] { width:90px; padding:6px 10px; border:1.5px solid #ffe082; border-radius:8px; font-size:15px; background:#fffde7; }
+    .candy-input-row input[type=number]:focus { outline:none; border-color:#ffb300; }
+    .candy-remain { font-size:15px; font-weight:600; margin-bottom:8px; }
+    .candy-remain.done { color:#2e7d32; }
+    .candy-remain.need { color:#c62828; }
+    .candy-bar-wrap { background:#ffe082; border-radius:6px; height:10px; margin-bottom:6px; overflow:hidden; }
+    .candy-bar-fill { background:linear-gradient(90deg,#ffb300,#e65100); border-radius:6px; height:10px; transition:width .35s; }
+    .candy-bar-label { font-size:12px; color:#999; text-align:right; margin-bottom:12px; }
+    .candy-tips-title { font-size:13px; font-weight:600; color:#555; margin-bottom:6px; }
+    .candy-tip { font-size:13px; color:#666; padding:2px 0; }
+    .candy-dup-warn { margin-top:12px; padding:10px 14px; background:#fff3e0; border:1.5px solid #ffb74d; border-radius:8px; font-size:13.5px; color:#e65100; }
+    .candy-dup-warn.urgent { background:#ffebee; border-color:#ef9a9a; color:#c62828; }
+
     @media (max-width: 500px) {
       .form-grid, .compare-grid, .compare-result-grid, .toggle-row { grid-template-columns: 1fr; }
       header h1 { font-size: 1.5rem; }
@@ -436,6 +457,14 @@
       <div class="divider"></div>
       <div class="section-label">Suggested Tags</div>
       <div id="res-tags"></div>
+      <!-- Candy Tracker — shown only for Evolve First results -->
+      <div id="res-candy-tracker" style="display:none">
+        <div class="divider"></div>
+        <div class="section-label">🍬 Candy Tracker</div>
+        <div class="candy-tracker" id="candy-tracker-body">
+          <div class="candy-tracker-loading">Looking up candy cost…</div>
+        </div>
+      </div>
       <button class="btn-secondary" onclick="resetAnalyze()">← Analyze another Pokémon</button>
     </div>
   </div>
@@ -1814,6 +1843,211 @@ function analyze() {
   saveToHistory(input, result);
 }
 
+// ── Candy Tracker ────────────────────────────────────────────────────────────
+// Candy needed to evolve FROM this specific species in Pokémon GO.
+// Unlisted species use formula: 25 for first evolution, 100 for second.
+const GO_CANDY_STEP = {
+  // 400-candy specials
+  'magikarp':400,'wailmer':400,'swablu':400,'stufful':400,
+  'noibat':400,'larvesta':400,'meltan':400,
+  // 100-candy two-stage lines
+  'feebas':100,'lickitung':100,'tangela':100,'electabuzz':100,
+  'magmar':100,'porygon2':100,'togetic':100,'yanma':100,
+  'aipom':100,'misdreavus':100,'corsola':100,'piloswine':100,
+  // 50-candy two-stage
+  'onix':50,'scyther':50,'seadra':50,
+};
+// Buddy walking distance in GO (km per candy). Default 3 km when unlisted.
+const GO_BUDDY_KM = {
+  // 1 km
+  'magikarp':1,'caterpie':1,'weedle':1,'pidgey':1,'rattata':1,'spearow':1,
+  'clefairy':1,'jigglypuff':1,'zubat':1,'gastly':1,'oddish':1,'paras':1,
+  'venonat':1,'meowth':1,'psyduck':1,'bellsprout':1,'geodude':1,
+  'goldeen':1,'staryu':1,'sentret':1,'hoothoot':1,'ledyba':1,
+  'spinarak':1,'wailmer':1,'pikachu':1,'wurmple':1,'zigzagoon':1,
+  // 3 km – starters and common mid-rarities
+  'bulbasaur':3,'charmander':3,'squirtle':3,
+  'chikorita':3,'cyndaquil':3,'totodile':3,
+  'treecko':3,'torchic':3,'mudkip':3,
+  'turtwig':3,'chimchar':3,'piplup':3,
+  'snivy':3,'tepig':3,'oshawott':3,
+  'chespin':3,'fennekin':3,'froakie':3,
+  'rowlet':3,'litten':3,'popplio':3,
+  'grookey':3,'scorbunny':3,'sobble':3,
+  'sprigatito':3,'fuecoco':3,'quaxly':3,
+  'eevee':3,'vulpix':3,'growlithe':3,'abra':3,'slowpoke':3,
+  'machop':3,'tentacool':3,'ponyta':3,'seel':3,'shellder':3,
+  // 5 km – pseudo-legendary lines and key rares
+  'dratini':5,'larvitar':5,'bagon':5,'beldum':5,'gible':5,
+  'deino':5,'goomy':5,'jangmo-o':5,'dreepy':5,'frigibax':5,
+  'porygon':5,'snorlax':5,'lapras':5,'chansey':5,'feebas':5,
+  'ralts':3,'absol':5,'mawile':5,
+  // 20 km
+  'ditto':20,
+};
+
+// Walk PokeAPI evolution chain from targetSlug to final form.
+// Returns { needed, finalName } or null.
+function _calcCandyToFinal(chain, targetSlug) {
+  function depthOf(node, slug, d) {
+    if (node.species.name === slug) return d;
+    for (const n of node.evolves_to) { const r = depthOf(n, slug, d+1); if (r !== null) return r; }
+    return null;
+  }
+  function nodeFor(node, slug) {
+    if (node.species.name === slug) return node;
+    for (const n of node.evolves_to) { const r = nodeFor(n, slug); if (r) return r; }
+    return null;
+  }
+  const startDepth = depthOf(chain, targetSlug, 0);
+  const startNode  = nodeFor(chain, targetSlug);
+  if (startDepth === null || !startNode) return null;
+
+  let total = 0, node = startNode, depth = startDepth;
+  while (node.evolves_to.length > 0) {
+    const slug = node.species.name;
+    const cost = GO_CANDY_STEP[slug] !== undefined ? GO_CANDY_STEP[slug]
+               : depth === 0 ? 25 : 100;
+    total += cost;
+    node = node.evolves_to[0]; // first branch (handles splits like Eevee via first only)
+    depth++;
+  }
+  return total > 0 ? { needed: total, finalName: node.species.name } : null;
+}
+
+let _candyGoal = 0; // set when tracker renders; read by updateCandyCalc()
+
+async function _initCandyTracker(rawName) {
+  const trackerDiv = document.getElementById('res-candy-tracker');
+  const bodyDiv    = document.getElementById('candy-tracker-body');
+  if (!trackerDiv || !bodyDiv) return;
+  trackerDiv.style.display = 'block';
+  bodyDiv.innerHTML = '<div class="candy-tracker-loading">🍬 Looking up candy cost…</div>';
+
+  const slug  = _toSpeciesSlug(rawName);
+  const cache = _getApiCache();
+  const cKey  = 'cdy_' + slug;
+
+  let info = cache[cKey] || null;
+
+  if (!info) {
+    try {
+      const ctrl  = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 8000);
+      const opts  = { signal: ctrl.signal, headers: { Accept: 'application/json' } };
+      const specRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${encodeURIComponent(slug)}/`, opts);
+      if (specRes.ok) {
+        const species = await specRes.json();
+        const evoUrl  = species.evolution_chain?.url;
+        if (evoUrl) {
+          const evoRes = await fetch(evoUrl, opts);
+          if (evoRes.ok) {
+            const evoData = await evoRes.json();
+            if (evoData?.chain) {
+              info = _calcCandyToFinal(evoData.chain, slug);
+              if (info) { cache[cKey] = info; _saveApiCache(); }
+            }
+          }
+        }
+      }
+      clearTimeout(timer);
+    } catch(e) {
+      console.warn('Candy tracker fetch:', e?.message ?? e);
+    }
+  }
+
+  _renderCandyBody(rawName, info);
+}
+
+function _renderCandyBody(rawName, info) {
+  const bodyDiv = document.getElementById('candy-tracker-body');
+  if (!bodyDiv) return;
+
+  if (!info) {
+    bodyDiv.innerHTML = '<div class="candy-tracker-loading">Candy cost unavailable — enter manually.</div>';
+    return;
+  }
+
+  _candyGoal = info.needed;
+  const key          = normName(rawName);
+  const buddyKm      = GO_BUDDY_KM[key] ?? GO_BUDDY_KM[_toSpeciesSlug(rawName)] ?? 3;
+  const finalDisplay = info.finalName.replace(/-/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+  const pinap        = buddyKm === 1 ? 6 : 6; // Pinap always doubles (base 3 → 6)
+
+  // Duplicate/family members in history
+  const famKey  = EVO_FAMILY[key] ?? key;
+  const history = loadHistory();
+  const dups    = history.filter(h => {
+    const hk = normName(h.name || '');
+    return (EVO_FAMILY[hk] ?? hk) === famKey;
+  });
+  const dupCount = dups.length;
+
+  const warnHTML = dupCount > 0
+    ? `<div class="candy-dup-warn" id="candy-dup-warn">
+        ⚠️ You have <strong>${dupCount}</strong> related Pokémon in your history.
+        Don't transfer them yet — each one gives <strong>1 candy</strong> toward your goal!
+      </div>`
+    : '';
+
+  bodyDiv.innerHTML = `
+    <div class="candy-goal-row">
+      <span class="candy-goal-num" id="candy-need-num">${info.needed}</span>
+      <span class="candy-goal-label">candy needed to reach <strong>${finalDisplay}</strong></span>
+    </div>
+    <div class="candy-input-row">
+      <label for="candy-have">I currently have:</label>
+      <input type="number" id="candy-have" min="0" placeholder="0"
+             oninput="updateCandyCalc()" />
+      <span style="font-size:14px;color:#555;">candy</span>
+    </div>
+    <div class="candy-remain need" id="candy-remain">Enter your candy count above</div>
+    <div class="candy-bar-wrap"><div class="candy-bar-fill" id="candy-bar" style="width:0%"></div></div>
+    <div class="candy-bar-label" id="candy-bar-lbl">0 / ${info.needed}</div>
+    <div class="candy-tips-title">📈 Farming tips</div>
+    <div class="candy-tip">🚶 Buddy walk <strong>${buddyKm} km</strong> per candy</div>
+    <div class="candy-tip">🍇 Pinap Berry: <strong>6 candy</strong> per catch (double)</div>
+    <div class="candy-tip">♻️ Transfer: <strong>1 candy</strong> per Pokémon</div>
+    <div class="candy-tip">🥚 Hatch eggs from the same family line</div>
+    ${warnHTML}
+  `;
+}
+
+function updateCandyCalc() {
+  const haveEl  = document.getElementById('candy-have');
+  const remEl   = document.getElementById('candy-remain');
+  const barEl   = document.getElementById('candy-bar');
+  const lblEl   = document.getElementById('candy-bar-lbl');
+  const warnEl  = document.getElementById('candy-dup-warn');
+  if (!haveEl || !remEl) return;
+
+  const have   = Math.max(0, parseInt(haveEl.value) || 0);
+  const needed = _candyGoal;
+  const remain = Math.max(0, needed - have);
+  const pct    = needed > 0 ? Math.min(100, Math.round(have / needed * 100)) : 0;
+
+  if (barEl) barEl.style.width = pct + '%';
+  if (lblEl) lblEl.textContent = `${have} / ${needed}`;
+
+  if (remain === 0) {
+    remEl.textContent = '✅ You have enough candy to evolve!';
+    remEl.className   = 'candy-remain done';
+  } else {
+    remEl.textContent = `You still need ${remain.toLocaleString()} more candy`;
+    remEl.className   = 'candy-remain need';
+  }
+
+  if (warnEl && remain > 0) {
+    if (remain <= 10) {
+      warnEl.className = 'candy-dup-warn urgent';
+      warnEl.innerHTML = `🚨 Only <strong>${remain} candy away from evolving!</strong> Do NOT transfer any related Pokémon — every candy counts right now!`;
+    } else if (remain <= 30) {
+      warnEl.className = 'candy-dup-warn urgent';
+      warnEl.innerHTML = `⚠️ Only <strong>${remain} more candy needed.</strong> Hold off on transferring any duplicates from the same line until you evolve!`;
+    }
+  }
+}
+
 function renderResult(input, result) {
   const { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity,
           isShiny, isLegendary, hasExclMove, isMega } = input;
@@ -1862,6 +2096,14 @@ function renderResult(input, result) {
 
   document.getElementById('res-tags').innerHTML =
     renderTagsHTML(getSuggestedTags(input, result));
+
+  // Candy tracker — only for Evolve First recommendation
+  const candySection = document.getElementById('res-candy-tracker');
+  if (category === 'EVOLVE') {
+    _initCandyTracker(name); // async — updates tracker body when data arrives
+  } else if (candySection) {
+    candySection.style.display = 'none';
+  }
 
   document.getElementById('input-card').style.display = 'none';
   document.getElementById('results').style.display = 'block';
