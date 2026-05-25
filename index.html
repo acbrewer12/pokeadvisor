@@ -949,7 +949,7 @@ const PVP_LEAGUE_STYLES = {
   ML: { label:'ML', bg:'#ffebee', border:'#b71c1c', color:'#b71c1c' },
 };
 
-function getSuggestedTags({ atk, def, sta, cp, isLegendary, isMega }, { category }) {
+function getSuggestedTags({ atk, def, sta, ivPct, cp, isLegendary, isMega }, { category }) {
   let catStyle;
   if (isMega) {
     catStyle = { label:'Mega', bg:'#e8f5e9', border:'#1b5e20', color:'#1b5e20' };
@@ -961,8 +961,15 @@ function getSuggestedTags({ atk, def, sta, cp, isLegendary, isMega }, { category
     catStyle = TAG_STYLES[category] || TAG_STYLES.KEEP;
   }
 
+  const catChip = { label: catStyle.label, type: 'category', bg: catStyle.bg, border: catStyle.border, color: catStyle.color };
+
+  // Raid + (Legendary or 85%+ IV) → double-duty: tag both Raid and ML
+  const dualTag = category === 'RAID' && (isLegendary || ivPct >= 85);
+  const mlChip  = { ...PVP_LEAGUE_STYLES.ML, type: 'category' };
+
   return [
-    { label: catStyle.label, type: 'category', bg: catStyle.bg, border: catStyle.border, color: catStyle.color },
+    catChip,
+    ...(dualTag ? [mlChip] : []),
     { label: `A${atk}`, type: 'iv' },
     { label: `D${def}`, type: 'iv' },
     { label: `S${sta}`, type: 'iv' },
