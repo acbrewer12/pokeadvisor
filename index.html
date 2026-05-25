@@ -132,7 +132,16 @@
     .badge-unevolved { background: #fff8e1; color: #f57f17; }
     .badge-rare { background: #e0f7fa; color: #006064; }
     .badge-common { background: #f3e5f5; color: #6a1b9a; }
-    .badge-league { background: #e3f2fd; color: #1565c0; }
+    .badge-league     { background: #e3f2fd; color: #1565c0; }
+    .badge-shiny      { background: #fff9c4; color: #e65100; }
+    .badge-legendary  { background: #ede7f6; color: #4527a0; }
+    .badge-exclusive  { background: #fce4ec; color: #ad1457; }
+
+    .toggle-row-3 {
+      display: grid; grid-template-columns: 1fr 1fr 1fr;
+      gap: 11px; margin-top: 11px;
+    }
+    @media (max-width: 500px) { .toggle-row-3 { grid-template-columns: 1fr; } }
 
     .category-badge {
       display: inline-flex; align-items: center; gap: 6px;
@@ -310,6 +319,30 @@
           <span class="toggle-label">Unevolved?</span>
           <label class="toggle-switch">
             <input type="checkbox" id="is-unevolved" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="toggle-row-3">
+        <div class="toggle-group">
+          <span class="toggle-label">✨ Shiny?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-shiny" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-group">
+          <span class="toggle-label">👑 Legendary?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-legendary" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-group">
+          <span class="toggle-label">🔒 Exclusive Move?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="has-excl-move" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -575,7 +608,53 @@ const CATEGORIES = {
   KEEP:          { label:'Keep / Hold',     icon:'📦' },
 };
 
-function decide({ name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity }) {
+// Public entry point — normalises legendary flag then applies post-rule overrides
+function decide(rawInput) {
+  const input = { ...rawInput };
+  if (input.isLegendary) {
+    input.isUnev = false;   // legendaries don't evolve in GO
+    input.rarity = 'rare';  // always treat as rare
+  }
+  const result = _decideCore(input);
+  return applySpecialOverrides(result, rawInput);
+}
+
+function applySpecialOverrides({ category, reasons, steps }, { name, isShiny, hasExclMove, isLegendary }) {
+  // ── Shiny: never transfer or trade, regardless of IVs ──
+  if (isShiny && ['TRANSFER','LUCKY_TRADE'].includes(category)) {
+    category = 'KEEP';
+    reasons.unshift({ icon:'⭐', text:`${esc(name)} is Shiny — Shiny Pokémon are irreplaceable and should never be transferred or traded away, no matter the IVs.` });
+    steps = [
+      'Tag this Pokémon as a Favorite (★) immediately to block accidental transfer.',
+      'Hold it permanently — Shinies cannot be recovered after transfer.',
+    ];
+  } else if (isShiny) {
+    reasons.push({ icon:'⭐', text:'Shiny status adds permanent collectible value — handle with extra care.' });
+  }
+
+  // ── Exclusive Move: blocks transfer/trade, warns on all other outcomes ──
+  if (hasExclMove && ['TRANSFER','LUCKY_TRADE'].includes(category)) {
+    category = 'KEEP';
+    reasons.unshift({ icon:'🔒', text:`${esc(name)} has an Exclusive Move — that move is permanently lost if you transfer or trade it away.` });
+    steps = [
+      'Keep this Pokémon — its Exclusive Move cannot be re-learned after transfer.',
+      'Favorite it (★) to protect it from accidental transfer.',
+    ];
+  } else if (hasExclMove) {
+    reasons.push({ icon:'🔒', text:'Exclusive Move detected — this makes it significantly harder to replace than a standard version.' });
+    steps.push('Reminder: the Exclusive Move is permanently lost if you ever transfer this Pokémon.');
+  }
+
+  // ── Legendary: if the engine fell through to plain KEEP, push toward Master League ──
+  if (isLegendary && category === 'KEEP') {
+    reasons.push({ icon:'👑', text:'As a Legendary it is inherently powerful in Master League — worth investing in even without a standout PvP rank.' });
+    steps.push('Try it in Master League PvP — Legendaries perform well there without CP restrictions.');
+  }
+
+  return { category, reasons, steps };
+}
+
+function _decideCore({ name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity }) {
   const reasons = [], steps = [];
   let category;
   const highAtk = atk >= 13, highDef = def >= 13, highSta = sta >= 13;
@@ -787,9 +866,12 @@ function analyze() {
   const sta      = getInt('iv-sta');
   const level    = getInt('poke-level');
   const cp       = getInt('poke-cp') || null;
-  const isShadow = getChk('is-shadow');
-  const isUnev   = getChk('is-unevolved');
-  const rarity   = getVal('poke-rarity');
+  const isShadow    = getChk('is-shadow');
+  const isUnev      = getChk('is-unevolved');
+  const rarity      = getVal('poke-rarity');
+  const isShiny     = getChk('is-shiny');
+  const isLegendary = getChk('is-legendary');
+  const hasExclMove = getChk('has-excl-move');
 
   if (!name)                                     { alert('Please enter a Pokémon name.'); return; }
   if (isNaN(ivPct)||ivPct<0||ivPct>100)         { alert('Overall IV % must be 0–100.'); return; }
@@ -797,14 +879,15 @@ function analyze() {
   if ([atk,def,sta].some(v=>isNaN(v)||v<0||v>15)) { alert('Individual IVs must be 0–15.'); return; }
   if (isNaN(level)||level<1||level>50)           { alert('Level must be 1–50.'); return; }
 
-  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity };
+  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isShiny, isLegendary, hasExclMove };
   const result = decide(input);
   renderResult(input, result);
   saveToHistory(input, result);
 }
 
 function renderResult(input, result) {
-  const { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity } = input;
+  const { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity,
+          isShiny, isLegendary, hasExclMove } = input;
   const { category, reasons, steps } = result;
   const cat    = CATEGORIES[category];
   const league = cp ? suggestLeague(cp) : null;
@@ -814,10 +897,13 @@ function renderResult(input, result) {
     `Lvl ${level}${cp ? ' · CP '+cp.toLocaleString() : ''} · IV ${ivPct}% · PvP ${pvpPct}% · ATK ${atk}/DEF ${def}/STA ${sta}`;
 
   document.getElementById('res-badges').innerHTML = [
-    isShadow         ? `<span class="badge badge-shadow">👤 Shadow</span>`   : '',
-    isUnev           ? `<span class="badge badge-unevolved">🌀 Unevolved</span>` : '',
-    rarity==='rare'  ? `<span class="badge badge-rare">🌟 Rare</span>`        : `<span class="badge badge-common">⬛ Common</span>`,
-    league           ? `<span class="badge badge-league">${league.icon} ${league.name}</span>` : '',
+    isShadow      ? `<span class="badge badge-shadow">👤 Shadow</span>`         : '',
+    isUnev        ? `<span class="badge badge-unevolved">🌀 Unevolved</span>`   : '',
+    isShiny       ? `<span class="badge badge-shiny">✨ Shiny</span>`            : '',
+    isLegendary   ? `<span class="badge badge-legendary">👑 Legendary</span>`   : '',
+    hasExclMove   ? `<span class="badge badge-exclusive">🔒 Exclusive Move</span>` : '',
+    rarity==='rare' ? `<span class="badge badge-rare">🌟 Rare</span>` : `<span class="badge badge-common">⬛ Common</span>`,
+    league        ? `<span class="badge badge-league">${league.icon} ${league.name}</span>` : '',
   ].join('');
 
   document.getElementById('res-category-badge').innerHTML =
