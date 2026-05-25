@@ -1831,6 +1831,387 @@ function scoreML(s) {
   return (s.ivPct * 0.7 + s.atk * 1.8 + s.pvpPct * 0.25) * (s.isShadow ? 1.1 : 1) * lg;
 }
 
+// ── Evolution family lookup ───────────────────────────────────────────────────
+// Maps every Pokémon name → its family root so duplicates across an evo line
+// are detected correctly (e.g. bulbasaur + ivysaur → both map to 'bulbasaur').
+const EVO_FAMILY = {};
+[
+  // Gen 1 starters & common lines
+  ['bulbasaur','ivysaur','venusaur'],
+  ['charmander','charmeleon','charizard'],
+  ['squirtle','wartortle','blastoise'],
+  ['caterpie','metapod','butterfree'],
+  ['weedle','kakuna','beedrill'],
+  ['pidgey','pidgeotto','pidgeot'],
+  ['rattata','raticate'],
+  ['spearow','fearow'],
+  ['ekans','arbok'],
+  ['pichu','pikachu','raichu'],
+  ['sandshrew','sandslash'],
+  ["nidoran♀",'nidorina','nidoqueen'],
+  ["nidoran♂",'nidorino','nidoking'],
+  ['cleffa','clefairy','clefable'],
+  ['igglybuff','jigglypuff','wigglytuff'],
+  ['zubat','golbat','crobat'],
+  ['oddish','gloom','vileplume','bellossom'],
+  ['paras','parasect'],
+  ['venonat','venomoth'],
+  ['diglett','dugtrio'],
+  ['meowth','persian'],
+  ['psyduck','golduck'],
+  ['mankey','primeape','annihilape'],
+  ['growlithe','arcanine'],
+  ['poliwag','poliwhirl','poliwrath','politoed'],
+  ['abra','kadabra','alakazam'],
+  ['machop','machoke','machamp'],
+  ['bellsprout','weepinbell','victreebel'],
+  ['tentacool','tentacruel'],
+  ['geodude','graveler','golem'],
+  ['ponyta','rapidash'],
+  ['slowpoke','slowbro','slowking','galarian slowpoke','galarian slowbro','galarian slowking'],
+  ['magnemite','magneton','magnezone'],
+  ['doduo','dodrio'],
+  ['seel','dewgong'],
+  ['grimer','muk'],
+  ['shellder','cloyster'],
+  ['gastly','haunter','gengar'],
+  ['onix','steelix'],
+  ['drowzee','hypno'],
+  ['krabby','kingler'],
+  ['voltorb','electrode'],
+  ['exeggcute','exeggutor'],
+  ['cubone','marowak'],
+  ['tyrogue','hitmonlee','hitmonchan','hitmontop'],
+  ['lickitung','lickilicky'],
+  ['koffing','weezing'],
+  ['rhyhorn','rhydon','rhyperior'],
+  ['happiny','chansey','blissey'],
+  ['tangela','tangrowth'],
+  ['horsea','seadra','kingdra'],
+  ['goldeen','seaking'],
+  ['staryu','starmie'],
+  ['scyther','scizor'],
+  ['elekid','electabuzz','electivire'],
+  ['magby','magmar','magmortar'],
+  ['magikarp','gyarados'],
+  ['eevee','vaporeon','jolteon','flareon','espeon','umbreon','leafeon','glaceon','sylveon'],
+  ['porygon','porygon2','porygon-z'],
+  ['omanyte','omastar'],
+  ['kabuto','kabutops'],
+  ['aerodactyl'],
+  ['dratini','dragonair','dragonite'],
+  ['larvitar','pupitar','tyranitar'],
+  // Gen 2
+  ['chikorita','bayleef','meganium'],
+  ['cyndaquil','quilava','typhlosion','hisuian typhlosion'],
+  ['totodile','croconaw','feraligatr'],
+  ['sentret','furret'],
+  ['hoothoot','noctowl'],
+  ['ledyba','ledian'],
+  ['spinarak','ariados'],
+  ['chinchou','lanturn'],
+  ['togepi','togetic','togekiss'],
+  ['natu','xatu'],
+  ['mareep','flaaffy','ampharos'],
+  ['azurill','marill','azumarill'],
+  ['hoppip','skiploom','jumpluff'],
+  ['aipom','ambipom'],
+  ['sunkern','sunflora'],
+  ['yanma','yanmega'],
+  ['wooper','quagsire','paldean wooper','clodsire'],
+  ['murkrow','honchkrow'],
+  ['misdreavus','mismagius'],
+  ['wynaut','wobbuffet'],
+  ['bonsly','sudowoodo'],
+  ['pineco','forretress'],
+  ['girafarig','farigiraf'],
+  ['slugma','magcargo'],
+  ['swinub','piloswine','mamoswine'],
+  ['remoraid','octillery'],
+  ['teddiursa','ursaring','ursaluna'],
+  ['snubbull','granbull'],
+  ['houndour','houndoom'],
+  ['phanpy','donphan'],
+  ['stantler','wyrdeer'],
+  ['sneasel','weavile','hisuian sneasel','hisuian sneasler'],
+  ['gligar','gliscor'],
+  ['dunsparce','dudunsparce'],
+  ['corsola','galarian corsola','galarian cursola'],
+  ['qwilfish','hisuian qwilfish','hisuian overqwil'],
+  // Gen 3
+  ['treecko','grovyle','sceptile'],
+  ['torchic','combusken','blaziken'],
+  ['mudkip','marshtomp','swampert'],
+  ['poochyena','mightyena'],
+  ['zigzagoon','linoone','galarian zigzagoon','galarian linoone','galarian obstagoon'],
+  ['wurmple','silcoon','beautifly','cascoon','dustox'],
+  ['lotad','lombre','ludicolo'],
+  ['seedot','nuzleaf','shiftry'],
+  ['taillow','swellow'],
+  ['wingull','pelipper'],
+  ['surskit','masquerain'],
+  ['shroomish','breloom'],
+  ['slakoth','vigoroth','slaking'],
+  ['nosepass','probopass'],
+  ['skitty','delcatty'],
+  ['aron','lairon','aggron'],
+  ['meditite','medicham'],
+  ['electrike','manectric'],
+  ['budew','roselia','roserade'],
+  ['gulpin','swalot'],
+  ['carvanha','sharpedo'],
+  ['wailmer','wailord'],
+  ['numel','camerupt'],
+  ['spoink','grumpig'],
+  ['trapinch','vibrava','flygon'],
+  ['cacnea','cacturne'],
+  ['swablu','altaria'],
+  ['barboach','whiscash'],
+  ['corphish','crawdaunt'],
+  ['baltoy','claydol'],
+  ['lileep','cradily'],
+  ['anorith','armaldo'],
+  ['feebas','milotic'],
+  ['shuppet','banette'],
+  ['duskull','dusclops','dusknoir'],
+  ['snorunt','glalie','froslass'],
+  ['spheal','sealeo','walrein'],
+  ['clamperl','huntail','gorebyss'],
+  ['ralts','kirlia','gardevoir','gallade'],
+  ['nincada','ninjask','shedinja'],
+  ['makuhita','hariyama'],
+  ['whismur','loudred','exploud'],
+  ['bagon','shelgon','salamence'],
+  ['beldum','metang','metagross'],
+  // Gen 4
+  ['turtwig','grotle','torterra'],
+  ['chimchar','monferno','infernape'],
+  ['piplup','prinplup','empoleon'],
+  ['starly','staravia','staraptor'],
+  ['bidoof','bibarel'],
+  ['kricketot','kricketune'],
+  ['shinx','luxio','luxray'],
+  ['cranidos','rampardos'],
+  ['shieldon','bastiodon'],
+  ['burmy','wormadam','mothim'],
+  ['combee','vespiquen'],
+  ['buizel','floatzel'],
+  ['cherubi','cherrim'],
+  ['shellos','gastrodon'],
+  ['drifloon','drifblim'],
+  ['buneary','lopunny'],
+  ['glameow','purugly'],
+  ['chingling','chimecho'],
+  ['stunky','skuntank'],
+  ['bronzor','bronzong'],
+  ['mime jr.','mr. mime'],
+  ['gible','gabite','garchomp'],
+  ['munchlax','snorlax'],
+  ['riolu','lucario'],
+  ['hippopotas','hippowdon'],
+  ['skorupi','drapion'],
+  ['croagunk','toxicroak'],
+  ['finneon','lumineon'],
+  ['mantyke','mantine'],
+  ['snover','abomasnow'],
+  ['cosmog','cosmoem','solgaleo','lunala'],
+  // Gen 5
+  ['snivy','servine','serperior'],
+  ['tepig','pignite','emboar'],
+  ['oshawott','dewott','samurott','hisuian samurott'],
+  ['patrat','watchog'],
+  ['lillipup','herdier','stoutland'],
+  ['purrloin','liepard'],
+  ['munna','musharna'],
+  ['pidove','tranquill','unfezant'],
+  ['blitzle','zebstrika'],
+  ['roggenrola','boldore','gigalith'],
+  ['woobat','swoobat'],
+  ['drilbur','excadrill'],
+  ['timburr','gurdurr','conkeldurr'],
+  ['tympole','palpitoad','seismitoad'],
+  ['sewaddle','swadloon','leavanny'],
+  ['venipede','whirlipede','scolipede'],
+  ['cottonee','whimsicott'],
+  ['petilil','lilligant','hisuian lilligant'],
+  ['sandile','krokorok','krookodile'],
+  ['darumaka','darmanitan','galarian darumaka','galarian darmanitan'],
+  ['dwebble','crustle'],
+  ['scraggy','scrafty'],
+  ['yamask','cofagrigus','galarian yamask','galarian runerigus'],
+  ['trubbish','garbodor'],
+  ['zorua','zoroark','hisuian zorua','hisuian zoroark'],
+  ['minccino','cinccino'],
+  ['gothita','gothorita','gothitelle'],
+  ['solosis','duosion','reuniclus'],
+  ['ducklett','swanna'],
+  ['vanillite','vanillish','vanilluxe'],
+  ['deerling','sawsbuck'],
+  ['karrablast','escavalier'],
+  ['foongus','amoonguss'],
+  ['frillish','jellicent'],
+  ['joltik','galvantula'],
+  ['ferroseed','ferrothorn'],
+  ['klink','klang','klinklang'],
+  ['tynamo','eelektrik','eelektross'],
+  ['elgyem','beheeyem'],
+  ['litwick','lampent','chandelure'],
+  ['axew','fraxure','haxorus'],
+  ['cubchoo','beartic'],
+  ['shelmet','accelgor'],
+  ['mienfoo','mienshao'],
+  ['golett','golurk'],
+  ['pawniard','bisharp','kingambit'],
+  ['rufflet','braviary','hisuian braviary'],
+  ['vullaby','mandibuzz'],
+  ['deino','zweilous','hydreigon'],
+  ['larvesta','volcarona'],
+  // Gen 6
+  ['chespin','quilladin','chesnaught'],
+  ['fennekin','braixen','delphox'],
+  ['froakie','frogadier','greninja'],
+  ['bunnelby','diggersby'],
+  ['fletchling','fletchinder','talonflame'],
+  ['scatterbug','spewpa','vivillon'],
+  ['litleo','pyroar'],
+  ['flabebe','floette','florges'],
+  ['skiddo','gogoat'],
+  ['pancham','pangoro'],
+  ['espurr','meowstic'],
+  ['honedge','doublade','aegislash'],
+  ['spritzee','aromatisse'],
+  ['swirlix','slurpuff'],
+  ['inkay','malamar'],
+  ['binacle','barbaracle'],
+  ['skrelp','dragalge'],
+  ['clauncher','clawitzer'],
+  ['helioptile','heliolisk'],
+  ['tyrunt','tyrantrum'],
+  ['amaura','aurorus'],
+  ['goomy','sliggoo','goodra','hisuian sliggoo','hisuian goodra'],
+  ['phantump','trevenant'],
+  ['pumpkaboo','gourgeist'],
+  ['bergmite','avalugg','hisuian avalugg'],
+  ['noibat','noivern'],
+  // Gen 7
+  ['rowlet','dartrix','decidueye','hisuian decidueye'],
+  ['litten','torracat','incineroar'],
+  ['popplio','brionne','primarina'],
+  ['pikipek','trumbeak','toucannon'],
+  ['yungoos','gumshoos'],
+  ['grubbin','charjabug','vikavolt'],
+  ['crabrawler','crabominable'],
+  ['cutiefly','ribombee'],
+  ['rockruff','lycanroc'],
+  ['mareanie','toxapex'],
+  ['mudbray','mudsdale'],
+  ['dewpider','araquanid'],
+  ['fomantis','lurantis'],
+  ['morelull','shiinotic'],
+  ['salandit','salazzle'],
+  ['stufful','bewear'],
+  ['bounsweet','steenee','tsareena'],
+  ['wimpod','golisopod'],
+  ['sandygast','palossand'],
+  ['type: null','silvally'],
+  ['jangmo-o','hakamo-o','kommo-o'],
+  // Gen 8
+  ['grookey','thwackey','rillaboom'],
+  ['scorbunny','raboot','cinderace'],
+  ['sobble','drizzile','inteleon'],
+  ['skwovet','greedent'],
+  ['rookidee','corvisquire','corviknight'],
+  ['blipbug','dottler','orbeetle'],
+  ['nickit','thievul'],
+  ['gossifleur','eldegoss'],
+  ['wooloo','dubwool'],
+  ['chewtle','drednaw'],
+  ['yamper','boltund'],
+  ['rolycoly','carkol','coalossal'],
+  ['applin','flapple','appletun','dipplin','hydrapple'],
+  ['silicobra','sandaconda'],
+  ['arrokuda','barraskewda'],
+  ['toxel','toxtricity'],
+  ['sizzlipede','centiskorch'],
+  ['clobbopus','grapploct'],
+  ['sinistea','polteageist'],
+  ['hatenna','hattrem','hatterene'],
+  ['impidimp','morgrem','grimmsnarl'],
+  ['milcery','alcremie'],
+  ['snom','frosmoth'],
+  ['cufant','copperajah'],
+  ['duraludon','archaludon'],
+  ['dreepy','drakloak','dragapult'],
+  ['kubfu','urshifu'],
+  ['meltan','melmetal'],
+  // Gen 9
+  ['sprigatito','floragato','meowscarada'],
+  ['fuecoco','crocalor','skeledirge'],
+  ['quaxly','quaxwell','quaquaval'],
+  ['lechonk','oinkologne'],
+  ['tarountula','spidops'],
+  ['nymble','lokix'],
+  ['pawmi','pawmo','pawmot'],
+  ['tandemaus','maushold'],
+  ['fidough','dachsbun'],
+  ['smoliv','dolliv','arboliva'],
+  ['nacli','naclstack','garganacl'],
+  ['charcadet','armarouge','ceruledge'],
+  ['tadbulb','bellibolt'],
+  ['wattrel','kilowattrel'],
+  ['maschiff','mabosstiff'],
+  ['shroodle','grafaiai'],
+  ['bramblin','brambleghast'],
+  ['toedscool','toedscruel'],
+  ['capsakid','scovillain'],
+  ['rellor','rabsca'],
+  ['flittle','espathra'],
+  ['tinkatink','tinkatuff','tinkaton'],
+  ['wiglett','wugtrio'],
+  ['finizen','palafin'],
+  ['varoom','revavroom'],
+  ['glimmet','glimmora'],
+  ['greavard','houndstone'],
+  ['gimmighoul','gholdengo'],
+  ['frigibax','arctibax','baxcalibur'],
+].forEach(chain => chain.forEach(n => EVO_FAMILY[n] = chain[0]));
+
+// Returns array of { r, reason, icon } for Pokémon that are redundant duplicates
+// within the same evolution line in the ranked list.
+function findDuplicateTransfers(ranked) {
+  // Group entries by evolution family
+  const families = new Map();
+  ranked.forEach(r => {
+    const fam = EVO_FAMILY[normName(r.stats.name)] ?? normName(r.stats.name);
+    if (!families.has(fam)) families.set(fam, []);
+    families.get(fam).push(r);
+  });
+
+  const result = [];
+  families.forEach(members => {
+    if (members.length < 2) return;
+    // Keeper A: best PvP %
+    const bestPvp = members.reduce((a, b) => a.stats.pvpPct >= b.stats.pvpPct ? a : b);
+    // Keeper B: best overall IV % (different role — keep only if distinct from bestPvp)
+    const bestIV  = members.reduce((a, b) => a.stats.ivPct  >= b.stats.ivPct  ? a : b);
+    const keepers = new Set([bestPvp, bestIV]);
+
+    members.forEach(r => {
+      if (keepers.has(r)) return;
+      let reason;
+      if (bestIV !== bestPvp) {
+        reason = `${esc(bestIV.stats.name)} has better IVs (${bestIV.stats.ivPct}%) · `
+               + `${esc(bestPvp.stats.name)} has better PvP (${bestPvp.stats.pvpPct}%)`;
+      } else {
+        reason = `${esc(bestPvp.stats.name)} outscores this in both IVs (${bestPvp.stats.ivPct}%) `
+               + `and PvP (${bestPvp.stats.pvpPct}%)`;
+      }
+      result.push({ r, reason, icon: '♻️' });
+    });
+  });
+  return result;
+}
+
 function runCompare() {
   const valid = cmpSlots.map(s => readEntryStats(s)).filter(s => s.name.trim());
   if (valid.length < 2) { alert('Please fill in at least 2 Pokémon names to compare.'); return; }
@@ -1885,30 +2266,53 @@ function runCompare() {
 
   // ── Transfer these ─────────────────────────────────────────────────────────
   const TRANSFER_CATS = new Set(['TRANSFER','LUCKY_TRADE']);
-  let transfers = ranked.filter(r => TRANSFER_CATS.has(r.result.category));
-  // If engine didn't flag any, surface the clear bottom scorer(s) when 3+ Pokémon
-  if (!transfers.length && ranked.length >= 3) {
+
+  // Engine-based transfers (TRANSFER / LUCKY_TRADE category)
+  const engineTransfers = ranked
+    .filter(r => TRANSFER_CATS.has(r.result.category))
+    .map(r => {
+      const isLucky = r.result.category === 'LUCKY_TRADE';
+      return {
+        r,
+        reason: isLucky ? 'Trade for Lucky — low trade value' : `Transfer for candy · Score ${r.overall.toFixed(0)}`,
+        icon: isLucky ? '🍀' : '♻️',
+      };
+    });
+
+  // Duplicate evolution-line transfers
+  const dupTransfers = findDuplicateTransfers(ranked);
+
+  // Merge: engine transfers take priority; add dup transfers not already listed
+  const engineSet = new Set(engineTransfers.map(t => t.r));
+  const allTransfers = [
+    ...engineTransfers,
+    ...dupTransfers.filter(t => !engineSet.has(t.r)),
+  ];
+
+  // Fallback: surface clear bottom scorer(s) when 3+ Pokémon and nothing flagged
+  if (!allTransfers.length && ranked.length >= 3) {
     const topScore = ranked[0].overall;
-    transfers = ranked.filter((r, i) => i > 0 && r.overall < topScore * 0.4);
+    ranked.forEach((r, i) => {
+      if (i > 0 && r.overall < topScore * 0.4) {
+        allTransfers.push({ r, reason: `Low overall score (${r.overall.toFixed(0)}) vs top scorer`, icon: '♻️' });
+      }
+    });
   }
 
   let transferHTML;
-  if (transfers.length) {
-    const items = transfers.map(r => {
-      const isLucky = r.result.category === 'LUCKY_TRADE';
-      const icon = isLucky ? '🍀' : '♻️';
-      const action = isLucky ? 'Trade for Lucky' : 'Transfer for candy';
-      return `<div class="cmp-transfer-item">
+  if (allTransfers.length) {
+    const items = allTransfers.map(({ r, reason, icon }) =>
+      `<div class="cmp-transfer-item">
         <div class="cmp-transfer-icon">${icon}</div>
         <div class="cmp-transfer-info">
           <div class="cmp-transfer-name">${esc(r.stats.name)}</div>
-          <div class="cmp-transfer-reason">${action} · IV ${r.stats.ivPct}% · Score ${r.overall.toFixed(0)}</div>
+          <div class="cmp-transfer-reason">${reason}</div>
         </div>
-      </div>`;
-    }).join('');
+      </div>`
+    ).join('');
     transferHTML = `<div class="cmp-transfer-list">${items}</div>`;
   } else {
-    transferHTML = `<div class="cmp-no-transfer">✓ Keep them all — none of these qualify for transfer based on current stats.</div>`;
+    transferHTML = `<div class="cmp-no-transfer">✓ Keep them all — no duplicates or low-value Pokémon detected.</div>`;
   }
 
   document.getElementById('cmp-res-title').textContent = `🏆 ${ranked[0].stats.name} wins!`;
