@@ -161,6 +161,7 @@
     .category-EVOLVE        { background: #fff8e1; color: #f57f17; }
     .category-LUCKY_TRADE   { background: #e0f7fa; color: #006064; }
     .category-KEEP          { background: #f5f5f5; color: #424242; }
+    .category-DYNAMAX       { background: #ede7f6; color: #4527a0; }
 
     .divider { height: 1px; background: #f0f0f0; margin: 14px 0; }
     .section-label {
@@ -431,6 +432,13 @@
           <span class="toggle-label">🌀 Mega Evolution?</span>
           <label class="toggle-switch">
             <input type="checkbox" id="is-mega" />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="toggle-group">
+          <span class="toggle-label">⚡ Dynamax?</span>
+          <label class="toggle-switch">
+            <input type="checkbox" id="is-dynamax" />
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -1442,35 +1450,50 @@ function switchTab(tab) {
 // DECISION ENGINE
 // ═══════════════════════════════════════════════════════
 const CATEGORIES = {
-  TRANSFER:      { label:'Transfer',        icon:'🗑️' },
-  RAID:          { label:'Raid Attacker',   icon:'⚔️' },
-  DEFENDER:      { label:'Gym Defender',    icon:'🛡️' },
-  PVP_EXCELLENT: { label:'PvP — Excellent', icon:'🏆' },
-  PVP_DECENT:    { label:'PvP — Decent',    icon:'🎯' },
-  PVP_SKIP:      { label:'Skip PvP',        icon:'⏭️' },
-  SHADOW_KEEP:   { label:'Keep Shadow',     icon:'👤' },
-  PURIFY:        { label:'Purify',          icon:'✨' },
-  EVOLVE:        { label:'Evolve First',    icon:'🌀' },
-  LUCKY_TRADE:   { label:'Trade for Lucky', icon:'🍀' },
-  KEEP:          { label:'Keep / Hold',     icon:'📦' },
+  TRANSFER:      { label:'Transfer',           icon:'🗑️' },
+  RAID:          { label:'Raid Attacker',      icon:'⚔️' },
+  DEFENDER:      { label:'Gym Defender',       icon:'🛡️' },
+  PVP_EXCELLENT: { label:'PvP — Excellent',    icon:'🏆' },
+  PVP_DECENT:    { label:'PvP — Decent',       icon:'🎯' },
+  PVP_SKIP:      { label:'Skip PvP',           icon:'⏭️' },
+  SHADOW_KEEP:   { label:'Keep Shadow',        icon:'👤' },
+  PURIFY:        { label:'Purify',             icon:'✨' },
+  EVOLVE:        { label:'Evolve First',       icon:'🌀' },
+  LUCKY_TRADE:   { label:'Trade for Lucky',    icon:'🍀' },
+  KEEP:          { label:'Keep / Hold',        icon:'📦' },
+  DYNAMAX:       { label:'Dynamax Asset',      icon:'⚡' },
 };
+
+// Gigantamax-capable species in Pokémon GO — always keep regardless of IVs
+const GIGANTAMAX_SET = new Set([
+  'charizard','venusaur','blastoise','pikachu','meowth','eevee',
+  'machamp','gengar','kingler','lapras','snorlax','butterfree',
+  'garbodor','melmetal','rillaboom','cinderace','inteleon',
+  'sandaconda','toxtricity','centiskorch','hatterene','grimmsnarl',
+  'alcremie','flapple','appletun','copperajah','duraludon','urshifu',
+]);
 
 // Public entry point — normalises flags then applies post-rule overrides
 function decide(rawInput) {
   const input = { ...rawInput };
   if (input.isLegendary) {
-    input.isUnev = false;   // legendaries don't evolve in GO
-    input.rarity = 'rare';  // always treat as rare
+    input.isUnev  = false;  // legendaries don't evolve in GO
+    input.rarity  = 'rare'; // always treat as rare
   }
 
-  // Mega Evolution → always Raid Attacker, regardless of all other stats
+  // Mega Evolution → always Raid Attacker
   if (input.isMega) {
     return applySpecialOverrides(megaResult(input), rawInput);
   }
 
-  // Legendary + 85%+ IV → direct Raid Attacker path; CP is irrelevant for Legendaries
-  if (input.isLegendary && input.ivPct >= 85) {
+  // Legendary + 87%+ IV → premier Raid + ML path
+  if (input.isLegendary && input.ivPct >= 87) {
     return applySpecialOverrides(legendaryHighIVResult(input), rawInput);
+  }
+
+  // All other legendaries: keep — too rare to transfer
+  if (input.isLegendary) {
+    return applySpecialOverrides(legendaryKeepResult(input), rawInput);
   }
 
   const result = _decideCore(input);
@@ -1496,219 +1519,359 @@ function megaResult({ name, ivPct, atk, isShadow }) {
 
 function legendaryHighIVResult({ name, ivPct, pvpPct, atk, isShadow }) {
   const reasons = [], steps = [];
-  reasons.push({ icon:'⚔️', text:`${ivPct}% IVs on a Legendary — this is premier raid attacker material.` });
-  reasons.push({ icon:'👑', text:'Legendary Pokémon always target Master League (no CP cap) — current CP does not affect this recommendation.' });
-  if (atk >= 13) reasons.push({ icon:'💎', text:`ATK ${atk}/15 is excellent — maximises damage output in raids.` });
-  if (isShadow && atk >= 13) reasons.push({ icon:'👤', text:`Shadow + ATK ${atk}/15 delivers ~20% more raid damage — do not purify.` });
-  if (pvpPct >= 70) reasons.push({ icon:'🏆', text:`PvP rank of ${pvpPct}% — solid Master League PvP option as a secondary role.` });
+  reasons.push({ icon:'⚔️', text:`${ivPct}% IVs on a Legendary — this is premier raid + Master League material (87%+ threshold met).` });
+  reasons.push({ icon:'👑', text:'No CP cap in Master League — current CP is irrelevant. Power up to Level 50 for peak performance.' });
+  if (atk >= 13) reasons.push({ icon:'💎', text:`ATK ${atk}/15 is excellent — maximises raid DPS. Remember: ATK IV matters most for raid damage.` });
+  if (isShadow && atk >= 13) reasons.push({ icon:'👤', text:`Shadow + ATK ${atk}/15 delivers ~20% more raid damage — Shadow Legendaries are among the rarest Pokémon in the game. Do NOT purify.` });
+  if (pvpPct >= 70) reasons.push({ icon:'🏆', text:`PvP rank ${pvpPct}% — strong Master League PvP option alongside its raid role.` });
 
-  steps.push(`Favorite ${esc(name)} immediately.`);
-  if (isShadow) steps.push('Do NOT purify — the Shadow damage bonus is especially powerful on a Legendary raid attacker.');
-  steps.push(`Power up ${esc(name)} to Level 40 for raids; push to Level 50 with XL candy for peak performance.`);
-  steps.push('Use Fast TM / Charged TM to equip the best raid moveset (shown below).');
+  steps.push(`Favorite ${esc(name)} immediately — top-tier asset.`);
+  if (isShadow) steps.push('Do NOT purify — Shadow Legendary is exceptionally rare. The 20% damage bonus far outweighs any IV upgrade.');
+  steps.push(`Power up to Level 40 for raids; push to Level 50 with XL candy for maximum output.`);
+  steps.push('Use Fast TM / Charged TM to set the best raid moveset (shown below).');
+  if (isShadow) steps.push('During a Rocket Takeover event, use Charged TM to remove Frustration so it can use its best moveset.');
   steps.push('Deploy in raids where its type is super-effective against the boss.');
-  if (pvpPct >= 70) steps.push(`Secondary — Master League PvP: power it to Level 50 (no CP cap) and use rank ${pvpPct}% to your advantage.`);
+  if (pvpPct >= 70) steps.push(`Master League PvP: power to Level 50 (no cap) — rank ${pvpPct}% is a solid competitive asset.`);
   return { category: 'RAID', reasons, steps };
 }
 
-function applySpecialOverrides({ category, reasons, steps }, { name, isShiny, hasExclMove, isLegendary }) {
-  // ── Shiny: never transfer or trade, regardless of IVs ──
+function legendaryKeepResult({ name, ivPct, pvpPct, atk, isShadow }) {
+  const reasons = [], steps = [];
+  reasons.push({ icon:'👑', text:`Keep ALL Legendaries — ${esc(name)} is too rare to transfer regardless of IVs.` });
+  reasons.push({ icon:'🔴', text:'Target Master League (no CP cap) + Raids. Power threshold for serious investment: 87%+ IV.' });
+  if (isShadow) reasons.push({ icon:'👤', text:'Shadow Legendary: even at these IVs the 20% damage bonus makes it stronger than a standard hundo of the same species.' });
+  if (pvpPct >= 70) reasons.push({ icon:'🏆', text:`PvP rank ${pvpPct}% — viable in Master League PvP.` });
+  if (ivPct >= 70) reasons.push({ icon:'🍀', text:`${ivPct}% IV — consider a Lucky trade with a Best Friend to push toward 87%+ for serious investment.` });
+
+  steps.push(`Favorite ${esc(name)} — do not transfer.`);
+  if (isShadow) steps.push('Shadow: do NOT purify unless all three IVs are 13+. The Shadow damage bonus is worth more than purified IVs.');
+  if (!isShadow && ivPct < 70) steps.push('Consider a Lucky Trade — Lucky guarantees ≥ 12/12/12 IVs and halves all Stardust costs.');
+  steps.push('Use in raids and Master League once powered up.');
+  steps.push(`When you find a 87%+ IV version, this one still has value as a TM fodder or secondary attacker.`);
+  return { category: 'KEEP', reasons, steps };
+}
+
+function applySpecialOverrides({ category, reasons, steps }, rawInput) {
+  const { name, isShiny, hasExclMove, isLegendary, isShadow, atk, def, sta, ivPct } = rawInput;
+
+  // ── Shiny: never transfer or trade ──
   if (isShiny && ['TRANSFER','LUCKY_TRADE'].includes(category)) {
     category = 'KEEP';
-    reasons.unshift({ icon:'⭐', text:`${esc(name)} is Shiny — Shiny Pokémon are irreplaceable and should never be transferred or traded away, no matter the IVs.` });
-    steps = [
-      'Tag this Pokémon as a Favorite (★) immediately to block accidental transfer.',
-      'Hold it permanently — Shinies cannot be recovered after transfer.',
-    ];
+    reasons.unshift({ icon:'⭐', text:`${esc(name)} is Shiny — Shiny Pokémon are irreplaceable regardless of IVs. Never transfer or trade.` });
+    steps = ['Tag as Favorite (★) immediately to block accidental transfer.', 'Hold permanently — Shinies cannot be recovered after transfer.'];
   } else if (isShiny) {
-    reasons.push({ icon:'⭐', text:'Shiny status adds permanent collectible value — handle with extra care.' });
+    reasons.push({ icon:'⭐', text:'Shiny — handle with extra care. Never transfer.' });
   }
 
-  // ── Exclusive Move: blocks transfer/trade, warns on all other outcomes ──
+  // ── Exclusive Move: blocks transfer/trade ──
   if (hasExclMove && ['TRANSFER','LUCKY_TRADE'].includes(category)) {
     category = 'KEEP';
-    reasons.unshift({ icon:'🔒', text:`${esc(name)} has an Exclusive Move — that move is permanently lost if you transfer or trade it away.` });
-    steps = [
-      'Keep this Pokémon — its Exclusive Move cannot be re-learned after transfer.',
-      'Favorite it (★) to protect it from accidental transfer.',
-    ];
+    reasons.unshift({ icon:'🔒', text:`${esc(name)} has an Exclusive Move — permanently lost if transferred or traded.` });
+    steps = ['Keep — Exclusive Move cannot be re-learned after transfer.', 'Favorite (★) to protect from accidental transfer.'];
   } else if (hasExclMove) {
-    reasons.push({ icon:'🔒', text:'Exclusive Move detected — this makes it significantly harder to replace than a standard version.' });
+    reasons.push({ icon:'🔒', text:'Exclusive Move detected — significantly harder to replace than a standard version.' });
     steps.push('Reminder: the Exclusive Move is permanently lost if you ever transfer this Pokémon.');
   }
 
-  // ── Legendary: if the engine fell through to plain KEEP, push toward Master League ──
-  // (High-IV legendaries are handled earlier via legendaryHighIVResult; this covers lower-IV cases.)
-  if (isLegendary && category === 'KEEP') {
-    reasons.push({ icon:'👑', text:'As a Legendary it is inherently powerful in Master League — no CP cap means its current CP is irrelevant.' });
-    steps.push('Master League PvP: power it up fully to Level 50 — there is no CP ceiling for Legendaries there.');
+  // ── 3-star / 4-star guard: IV ≥ 80% → never directly transfer ──
+  if (category === 'TRANSFER' && ivPct >= 80) {
+    category = 'LUCKY_TRADE';
+    reasons.unshift({ icon:'⭐', text:`${ivPct}% IV is 3-star quality — never transfer a 3-star until you have a confirmed better replacement.` });
+    reasons.push({ icon:'🍀', text:'Trade with a Best Friend for a Lucky chance; Lucky guarantees ≥ 12/12/12 IVs at half the Stardust cost.' });
+    steps = ['Hold as Lucky Trade fodder.', 'If it goes Lucky, the improved IVs and Stardust discount make it worth powering up.'];
+  }
+
+  // ── Nundo (0/0/0) guard: never transfer or trade ──
+  if (atk === 0 && def === 0 && sta === 0 && ['TRANSFER','LUCKY_TRADE'].includes(category)) {
+    category = 'KEEP';
+    reasons.unshift({ icon:'⬛', text:`0/0/0 Nundo — rarer than a perfect hundo. Nundos have niche PvP value and serious collector status.` });
+    steps = ['Favorite immediately — Nundos cannot be replaced.', 'Research PvP applications for its species before investing.'];
+  }
+
+  // ── Shadow: cannot be Lucky-traded — downgrade LUCKY_TRADE to KEEP ──
+  if (isShadow && category === 'LUCKY_TRADE') {
+    category = 'KEEP';
+    reasons.push({ icon:'🔒', text:'Shadow Pokémon cannot be traded — Lucky Trade is not an option. Hold and decide between purifying or keeping Shadow.' });
+    steps.push('Since trading is not possible, assess whether to purify (for IV boost) or keep Shadow (for 20% damage bonus).');
   }
 
   return { category, reasons, steps };
 }
 
-function _decideCore({ name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity }) {
+function _decideCore({ name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isDynamax }) {
   const reasons = [], steps = [];
   let category;
-  const highAtk = atk >= 13, highDef = def >= 13, highSta = sta >= 13;
-  const highIV = ivPct >= 80, midIV = ivPct >= 50 && ivPct < 80, lowIV = ivPct < 50;
-  const pvpExcellent = pvpPct >= 90, pvpDecent = pvpPct >= 70 && pvpPct < 90;
-  const pvpSkip = pvpPct < 70;
-  const league = cp ? suggestLeague(cp) : null;
 
-  // 1. Common + low IV → Transfer
-  if (lowIV && rarity === 'common') {
+  // ── Pro-level thresholds ─────────────────────────────────────────────────────
+  const highAtk   = atk >= 13;
+  const highDef   = def >= 13;
+  const highSta   = sta >= 13;
+  const allHigh   = highAtk && highDef && highSta; // purify-worthy (→ 15/15/15)
+  const raidIV    = ivPct >= 82;    // raid-quality floor
+  const highIV    = ivPct >= 80;    // 3-star — never directly transfer
+  const lowIV     = ivPct < 50;
+  const nundo     = atk === 0 && def === 0 && sta === 0;
+  const pvpEx     = pvpPct >= 90;   // excellent — all leagues
+  const pvpULmin  = pvpPct >= 85;   // UL minimum threshold
+  const pvpGLmin  = pvpPct >= 70;   // GL/UL minimum
+  const isGL      = cp && cp <= 1500;
+  const isUL      = cp && cp > 1500 && cp <= 2500;
+  const league    = cp ? suggestLeague(cp) : null;
+
+  // ── 1. Nundo (0/0/0) — rarer than a hundo, niche PvP value ──────────────────
+  if (nundo) {
+    category = 'KEEP';
+    reasons.push({ icon:'⬛', text:`0/0/0 "Nundo" — statistically rarer than a perfect hundo. Minimum ATK is ideal in some PvP formats (less CP inflation under the cap).` });
+    reasons.push({ icon:'🏆', text:'Has niche Great League applications where the lowest possible ATK IV maximises bulk at exactly 1500 CP.' });
+    steps.push('Favorite immediately (★) — Nundos are irreplaceable.');
+    steps.push('Tag it "Nundo" so you know what it is at a glance.');
+    steps.push('Research whether its species is a meta Great League pick before investing Stardust.');
+    return { category, reasons, steps };
+  }
+
+  // ── 2. Dynamax / Gigantamax ───────────────────────────────────────────────────
+  if (isDynamax) {
+    const isGmax = GIGANTAMAX_SET.has(normName(name));
+    if (isGmax) {
+      category = 'DYNAMAX';
+      reasons.push({ icon:'⚡', text:`${esc(name)} is Gigantamax-capable — always keep regardless of IVs. G-Max moves are categorically stronger than standard Max moves.` });
+      reasons.push({ icon:'💥', text:'G-Max Pokémon cannot be replaced — only specific species can use G-Max moves, and they must be caught in Max Battles.' });
+      reasons.push({ icon:'🛡️', text:`Max Battles favour high ATK + STA for bulk and DPS. ATK ${atk}/15, STA ${sta}/15.` });
+      steps.push('Favorite immediately (★) — G-Max Pokémon are rare and irreplaceable.');
+      steps.push('Power up Max Moves, prioritising the type that gives the most coverage in 4-player battles.');
+      if (highAtk && highSta) steps.push('Excellent Max Battle IVs — ATK drives damage, STA keeps you alive longer in multi-player battles.');
+      return { category, reasons, steps };
+    }
+    if (ivPct >= 70 || rarity === 'rare') {
+      category = 'DYNAMAX';
+      reasons.push({ icon:'⚡', text:`Dynamax ${esc(name)} at ${ivPct}% IV meets the 70%+ threshold for effective Max Battles.` });
+      reasons.push({ icon:'🛡️', text:`High ATK + STA matters most in Max Battles. ATK ${atk}/15, STA ${sta}/15.` });
+      steps.push('Favorite this Pokémon for Max Battle use.');
+      steps.push('Power up and unlock Max Moves for the most useful type coverage.');
+      steps.push('In 4-player Max Battles: your bulk (STA) keeps you active longer, letting teammates deal more damage.');
+      return { category, reasons, steps };
+    }
+    // Common Dynamax below 70% — transfer
     category = 'TRANSFER';
-    reasons.push({ icon:'📉', text:`Overall IV of ${ivPct}% is below 50% — not worth keeping for a common Pokémon.` });
-    if (isShadow) reasons.push({ icon:'👤', text:'Shadow status alone does not save a low-IV common from transfer.' });
-    steps.push('Open Pokémon storage in GO.');
-    steps.push(`Find ${esc(name)} and tap it.`);
-    steps.push('Tap the menu (≡) and choose Transfer.');
-    steps.push('Confirm — you receive 1 candy.');
+    reasons.push({ icon:'⚡', text:`Common Dynamax ${esc(name)} at ${ivPct}% IV — below the 70% floor for effective Max Battles.` });
+    reasons.push({ icon:'🍬', text:'Transfer for candy to power up your stronger Dynamax versions.' });
+    steps.push('Check whether you have a higher-IV Dynamax version already.');
+    steps.push('If yes, transfer this one. If no, hold until you catch a better version.');
     return { category, reasons, steps };
   }
 
-  // 2. Rare + low IV → Lucky Trade
-  if (lowIV && rarity === 'rare') {
-    category = 'LUCKY_TRADE';
-    reasons.push({ icon:'🍀', text:`${esc(name)} is rare — even at ${ivPct}% IVs it is worth trading for a Lucky Pokémon.` });
-    reasons.push({ icon:'✨', text:'Lucky trades guarantee 12/12/12 minimum IVs and halve Stardust power-up costs.' });
-    steps.push('Hold it as trade fodder.');
-    steps.push('Trade with a Best Friend for the highest Lucky trade chance.');
-    steps.push('If Lucky, power it up cheaply thanks to the Stardust discount.');
+  // ── 3. Shadow Pokémon — multi-path logic ─────────────────────────────────────
+  if (isShadow) {
+
+    // 3a. Shadow + top raid attacker (ATK ≥ 13) → always keep Shadow
+    // Even a 0% IV Shadow outperforms a 100% IV normal of the same species for raids.
+    if (highAtk) {
+      category = 'SHADOW_KEEP';
+      reasons.push({ icon:'👤', text:`Shadow ${esc(name)} with ATK ${atk}/15 — a 0% Shadow still outperforms a 100% IV normal version for raid DPS. NEVER transfer a Shadow top attacker.` });
+      reasons.push({ icon:'⚔️', text:'Shadow Pokémon deal ~20% more damage. This bonus applies to ANY IV level — the ATK multiplier is additive with the Shadow multiplier.' });
+      if (allHigh) {
+        reasons.push({ icon:'💡', text:`All IVs ≥ 13 — purifying would give 15/15/15, but the 20% Shadow bonus is worth more than any IV upgrade for a raid attacker. Keep Shadow.` });
+      }
+      steps.push('Favorite (★) immediately — do NOT transfer.');
+      steps.push('Do NOT purify — the Shadow damage bonus permanently outweighs the IV gain from purification for a raid attacker.');
+      steps.push('During a Rocket Takeover event: use Charged TM to remove Frustration, then it can use its best moveset in raids.');
+      steps.push(`Power up ${esc(name)} to Level 40 for raids; Level 50 if you have XL candy.`);
+      if (pvpEx) steps.push(`Bonus: ${pvpPct}% PvP rank — also viable in Go Battle League with Shadow attack pressure.`);
+      return { category, reasons, steps };
+    }
+
+    // 3b. Shadow + all IVs ≥ 13 (not a top attacker) → Purify for 15/15/15
+    if (allHigh) {
+      category = 'PURIFY';
+      reasons.push({ icon:'✨', text:`All IVs ≥ 13 — purifying ${esc(name)} adds +2 to each IV, making it 15/15/15 (perfect).` });
+      reasons.push({ icon:'💎', text:'Perfect IVs + permanent 10% Stardust/candy discount = best long-term value. Since ATK is below 13, the Shadow bonus is less impactful here.' });
+      reasons.push({ icon:'💰', text:'The Stardust discount applies to EVERY power-up from Level 1 to 50 — significant long-term savings.' });
+      steps.push(`Gather the Stardust and candy for purification (varies by species).`);
+      steps.push(`Purify ${esc(name)} — all three IVs become 15 (the +2 bonus is capped at 15).`);
+      steps.push('Now a perfect Pokémon. Favorite (★) and power up for its best role.');
+      return { category, reasons, steps };
+    }
+
+    // 3c. Shadow + ATK < 13 + below 13/13/13 → Purify for stardust discount
+    if (!highAtk && ivPct < 80) {
+      category = 'PURIFY';
+      reasons.push({ icon:'✨', text:`Shadow ${esc(name)} is not a top raid attacker (ATK ${atk}/15 < 13) — purifying gives a permanent 10% Stardust/candy discount.` });
+      reasons.push({ icon:'💰', text:'The stardust savings compound with every power-up. Even at modest IVs, the discount is worth more than the Shadow bonus for a non-top-attacker.' });
+      steps.push(`Purify ${esc(name)} for the permanent discount.`);
+      steps.push('After purifying, re-evaluate: if IVs are decent (80%+), keep and use; if still low, transfer for candy.');
+      return { category, reasons, steps };
+    }
+
+    // 3d. Shadow + ATK < 13 + decent IV → hold (cannot trade shadows)
+    category = 'SHADOW_KEEP';
+    reasons.push({ icon:'👤', text:`Shadow ${esc(name)} — ${ivPct}% IV. Not a top raid attacker but decent. Shadows cannot be traded.` });
+    reasons.push({ icon:'💡', text:'Consider purifying if you plan to actively use this species for its Stardust discount and IV boost.' });
+    steps.push('Decide: purify for the Stardust discount and IV boost, OR keep Shadow for the damage multiplier.');
+    steps.push('Keep Shadow if it sees regular battle use; purify otherwise for the stardust savings.');
     return { category, reasons, steps };
   }
 
-  // 3. Unevolved → Evolve first
+  // ── 4. Unevolved → always Evolve First ───────────────────────────────────────
   if (isUnev) {
     category = 'EVOLVE';
-    reasons.push({ icon:'🌀', text:`${esc(name)} is unevolved — assess the final form stats before assigning a role.` });
-    if (highAtk) reasons.push({ icon:'⚔️', text:`High ATK IV (${atk}/15) — the evolved form likely has raid potential.` });
-    if (pvpExcellent) reasons.push({ icon:'🏆', text:`Excellent PvP rank (${pvpPct}%) — great candidate after evolving.` });
-    if (isShadow && highAtk) reasons.push({ icon:'👤', text:'Keep it Shadow when evolving — the 20% damage bonus carries over.' });
-    steps.push('Check you have enough candy to evolve.');
-    if (isShadow) steps.push('Do NOT purify before evolving — the Shadow boost applies to the evolved form.');
-    if (pvpExcellent && league) steps.push(`If evolving for ${league.name} PvP, do NOT power up above the ${league.max === Infinity ? 'max' : league.max.toLocaleString()} CP cap first.`);
+    reasons.push({ icon:'🌀', text:`${esc(name)} is unevolved — assess the final form before assigning a permanent role.` });
+    if (highAtk) reasons.push({ icon:'⚔️', text:`ATK ${atk}/15 meets the raid threshold — the evolved form likely has strong raid potential.` });
+    if (pvpEx) reasons.push({ icon:'🏆', text:`${pvpPct}% PvP rank is excellent — great candidate after evolving.` });
+    steps.push('Check you have enough candy to evolve (see Candy Tracker below).');
+    if (isShadow) steps.push('Do NOT purify before evolving — the Shadow bonus carries over to the evolved form.');
+    if (pvpEx && league) steps.push(`If evolving for ${league.name} PvP, do NOT power up past the ${league.max === Infinity ? 'max' : league.max.toLocaleString()} CP cap first.`);
     steps.push(`Evolve ${esc(name)} to its final form.`);
     steps.push('Re-scan the evolved form in Poke Genie and run it through PokeAdvisor again.');
     return { category, reasons, steps };
   }
 
-  // 4. Shadow + high ATK → Keep Shadow for raids
-  if (isShadow && highAtk && !lowIV) {
-    category = 'SHADOW_KEEP';
-    reasons.push({ icon:'👤', text:`Shadow Pokémon deal 20% more damage — ${esc(name)} with ATK ${atk}/15 excels in raids.` });
-    reasons.push({ icon:'⚔️', text:`High ATK IV (${atk}/15) maximizes the Shadow damage multiplier.` });
-    if (highIV) reasons.push({ icon:'💎', text:`${ivPct}% overall IV is excellent — top-tier keeper.` });
-    steps.push('Favorite this Pokémon (★) to prevent accidental transfer.');
-    steps.push('Do NOT purify — you would lose the 20% Shadow damage bonus.');
-    steps.push(`Power up ${esc(name)} to Level 40; Level 50 if you have XL candy.`);
-    steps.push('Use a Fast TM / Charged TM to set the best raid moveset.');
-    steps.push('Deploy in raids where its type is super-effective against the boss.');
-    if (pvpExcellent) steps.push(`Bonus: PvP rank of ${pvpPct}% — also viable in Go Battle League.`);
-    return { category, reasons, steps };
-  }
-
-  // 5. Shadow + all IVs 13+ → Purify for 15/15/15
-  if (isShadow && atk >= 13 && def >= 13 && sta >= 13) {
-    category = 'PURIFY';
-    reasons.push({ icon:'✨', text:'All three IVs ≥ 13 — purifying upgrades them all to 15/15/15 (perfect IVs).' });
-    reasons.push({ icon:'💎', text:'A purified 100% IV Pokémon costs less Stardust to power up and excels everywhere.' });
-    steps.push('Gather the required Stardust and candy (varies by species).');
-    steps.push(`Purify ${esc(name)} — all IVs become 15/15/15.`);
-    steps.push('It is now a top-tier all-rounder for raids, gyms, and PvP.');
-    steps.push('Favorite it immediately to keep it safe.');
-    return { category, reasons, steps };
-  }
-
-  // 6. PvP Excellent
-  if (pvpExcellent) {
-    category = 'PVP_EXCELLENT';
-    reasons.push({ icon:'🏆', text:`Outstanding PvP rank of ${pvpPct}% — top-tier for Go Battle League.` });
-    if (highIV) reasons.push({ icon:'💎', text:`${ivPct}% overall IV is also excellent.` });
-    steps.push('Favorite this Pokémon immediately.');
-    steps.push(league
-      ? `CP ${cp} places it in ${league.name} — ${league.note}`
-      : 'Determine the best league: GL (≤1500 CP), UL (≤2500 CP), or ML (no cap).');
-    steps.push('Power it up only to the CP cap of your target league.');
-    steps.push('Unlock a second Charged Move if the optimal moveset needs two.');
-    steps.push('Add it to your battle team and study the key matchups.');
-    if (isShadow) steps.push('Shadow Pokémon are viable in PvP — keep it Shadow unless you need extra bulk.');
-    return { category, reasons, steps };
-  }
-
-  // 7. PvP Decent
-  if (pvpDecent) {
-    category = 'PVP_DECENT';
-    reasons.push({ icon:'🎯', text:`PvP rank of ${pvpPct}% is decent — a workable battle league candidate.` });
-    reasons.push({ icon:'ℹ️', text:'Usable, but watch for a 90%+ ranked replacement.' });
-    steps.push('Check if you already have a higher-ranked version in storage.');
-    steps.push('If not, favorite and determine its best league (GL / UL / ML).');
-    steps.push('Invest Stardust only if you plan to use it regularly.');
-    steps.push('Replace when you find a 90%+ PvP rank copy.');
-    return { category, reasons, steps };
-  }
-
-  // 8. High ATK → Raid Attacker
-  if (highAtk && !lowIV) {
+  // ── 5. Raid Attacker: ATK ≥ 13 AND overall IV ≥ 82% ─────────────────────────
+  if (highAtk && raidIV) {
     category = 'RAID';
-    reasons.push({ icon:'⚔️', text:`High ATK IV (${atk}/15) makes ${esc(name)} a strong raid attacker.` });
-    if (highIV) reasons.push({ icon:'💎', text:`Excellent overall IVs (${ivPct}%) — worth powering up.` });
-    else reasons.push({ icon:'ℹ️', text:`ATK IV matters most for raid damage; overall IV of ${ivPct}% is acceptable.` });
-    steps.push('Favorite this Pokémon.');
-    steps.push(`Power up ${esc(name)} to Level 40, then Level 50 if you have XL candy.`);
+    reasons.push({ icon:'⚔️', text:`ATK ${atk}/15 (≥ 13 threshold ✓) + ${ivPct}% overall IV (≥ 82% threshold ✓) — meets both criteria for a quality raid attacker.` });
+    reasons.push({ icon:'💡', text:'ATK IV matters most for raid DPS. 15/14/14 beats 14/15/15 — your ATK IV is the key stat here.' });
+    if (ivPct >= 98) {
+      reasons.push({ icon:'💎', text:`${ivPct}% IV — near-perfect or perfect. Worth the full Level 50 XL candy investment.` });
+    } else {
+      reasons.push({ icon:'ℹ️', text:`The gap between a 3-star and a perfect raid attacker is less than 1% DPS — ${ivPct}% is plenty. Don't hold out for a hundo.` });
+    }
+    steps.push('Favorite (★).');
+    steps.push(`Power up ${esc(name)} to Level 40, then Level 50 if you have XL candy to spare.`);
     steps.push('Use Fast TM / Charged TM to equip the best raid moveset (see below).');
-    steps.push('Use it in raids where its type is super-effective against the boss.');
+    steps.push('Deploy in raids where its type is super-effective against the boss.');
     return { category, reasons, steps };
   }
 
-  // 9. High DEF + STA → Gym Defender
-  if (highDef && highSta && !lowIV) {
+  // ── 6. PvP checks — league-context-aware ─────────────────────────────────────
+
+  // Great League (CP ≤ 1500): excellent ≥ 90%, decent ≥ 70%
+  if (isGL) {
+    if (pvpEx) {
+      category = 'PVP_EXCELLENT';
+      reasons.push({ icon:'🏆', text:`Great League PvP rank ${pvpPct}% — top-tier GL candidate (90%+ threshold met).` });
+      reasons.push({ icon:'📉', text:`GL strategy: LOW ATK IV = less CP inflation = more bulk under 1500 cap. ATK ${atk}/15 — ${atk <= 2 ? '✓ ideal low ATK' : atk <= 5 ? 'good' : 'acceptable (PvP rank already accounts for CP efficiency)'}.` });
+      steps.push('Favorite immediately (★).');
+      steps.push('Power up to exactly CP 1500 — stop the moment you hit the cap.');
+      steps.push('Unlock a second Charged Move if the meta moveset requires it.');
+      steps.push('Study key matchups for Great League (check pvpoke.com for current meta).');
+      return { category, reasons, steps };
+    }
+    if (pvpGLmin) {
+      category = 'PVP_DECENT';
+      reasons.push({ icon:'🎯', text:`Great League rank ${pvpPct}% — acceptable for now (70%+ threshold met). Aim to replace with 90%+ eventually.` });
+      reasons.push({ icon:'📉', text:`GL prefers LOW ATK IV for bulk under 1500 CP. ATK ${atk}/15.` });
+      steps.push('Usable in Great League — power up to CP 1500.');
+      steps.push('Don\'t invest heavily until you have a 90%+ rank copy.');
+      steps.push('Replace when a 90%+ GL rank copy is found.');
+      return { category, reasons, steps };
+    }
+  }
+
+  // Ultra League (CP 1501–2500): excellent ≥ 85%, decent ≥ 70%
+  if (isUL) {
+    if (pvpULmin) {
+      category = pvpEx ? 'PVP_EXCELLENT' : 'PVP_DECENT';
+      reasons.push({ icon:'🏆', text:`Ultra League PvP rank ${pvpPct}% — ${pvpEx ? 'excellent' : 'strong'} UL candidate (${pvpEx ? '90' : '85'}%+ threshold met).` });
+      reasons.push({ icon:'📉', text:`UL strategy: LOW ATK + HIGH DEF + STA = maximum bulk under 2500 CP. DEF ${def}/15, STA ${sta}/15.` });
+      steps.push('Favorite (★).');
+      steps.push('Power up to exactly CP 2500 — stop at the cap.');
+      steps.push('Unlock a second Charged Move if the meta moveset requires it.');
+      return { category, reasons, steps };
+    }
+    if (pvpGLmin) {
+      category = 'PVP_DECENT';
+      reasons.push({ icon:'🎯', text:`Ultra League rank ${pvpPct}% — below the 85% UL threshold but playable. Replace with 85%+ when possible.` });
+      steps.push('Usable in Ultra League — power to CP 2500.');
+      steps.push('Replace when an 85%+ UL rank copy is found.');
+      return { category, reasons, steps };
+    }
+  }
+
+  // Master League or no CP entered: excellent PvP rank or high IV qualifies
+  if (!isGL && !isUL) {
+    if (pvpEx) {
+      category = 'PVP_EXCELLENT';
+      reasons.push({ icon:'🏆', text:`PvP rank ${pvpPct}% — excellent for Master League or current league context.` });
+      if (raidIV) reasons.push({ icon:'💎', text:`${ivPct}% IV also meets the 82%+ ML threshold — dual raid/PvP asset.` });
+      steps.push('Favorite (★).');
+      steps.push('Master League: no CP cap — power to Level 50 for peak performance.');
+      steps.push('Unlock a second Charged Move if the meta moveset requires it.');
+      return { category, reasons, steps };
+    }
+    // High IV (≥82%) qualifies for ML PvP even without top pvpPct
+    if (raidIV && !highAtk) {
+      category = 'PVP_DECENT';
+      reasons.push({ icon:'🎯', text:`${ivPct}% overall IV meets the 82%+ Master League threshold. Without high ATK (${atk}/15) it favours ML PvP over raids.` });
+      reasons.push({ icon:'🔴', text:'Master League: no CP cap — highest IV profile is always best. 15/15/15 is the ideal.' });
+      steps.push('Favorite (★).');
+      steps.push('Power up to Level 50 for Master League — no cap means raw IV determines stats directly.');
+      steps.push('Replace if you find a higher-IV version.');
+      return { category, reasons, steps };
+    }
+  }
+
+  // ── 7. Gym Defender: BOTH DEF ≥ 13 AND STA ≥ 13 ─────────────────────────────
+  if (highDef && highSta) {
     category = 'DEFENDER';
-    reasons.push({ icon:'🛡️', text:`High DEF (${def}/15) and STA (${sta}/15) make ${esc(name)} a sturdy gym defender.` });
-    reasons.push({ icon:'🏋️', text:'Bulk (DEF × STA) determines how long a defender holds a gym.' });
+    reasons.push({ icon:'🛡️', text:`DEF ${def}/15 + STA ${sta}/15 — both meet the 13+ threshold. BOTH are required; one without the other wastes the stat advantage.` });
+    reasons.push({ icon:'🔕', text:`ATK is irrelevant for gym defense (${atk}/15 does not matter here). A gym defender never attacks — it just needs to survive.` });
+    reasons.push({ icon:'🏋️', text:'DEF × STA determines how long a defender holds a gym. Your Pokémon excels at this.' });
     steps.push('Power up to at least Level 30 for gym defense.');
     steps.push('Place in a friendly gym with type diversity to slow attackers.');
-    steps.push('Feed it berries (Razz, Nanab, Pinap) while it defends to keep motivation high.');
-    steps.push('Rotate it out and power back up when it returns.');
+    steps.push('Feed it berries (Razz, Nanab, Pinap) while it defends to maintain motivation.');
+    steps.push('Rotate out and power back up when it returns — motivation decays over time.');
     return { category, reasons, steps };
   }
 
-  // 10. Common + mid IV + low PvP → Transfer
-  if (rarity === 'common' && midIV && pvpSkip) {
-    category = 'TRANSFER';
-    reasons.push({ icon:'📦', text:`Common Pokémon with mid IVs (${ivPct}%) and low PvP rank (${pvpPct}%) — transfer duplicates.` });
-    reasons.push({ icon:'🍬', text:'The candy gained helps power up your better versions.' });
-    steps.push('Check whether you have a higher-IV or better-ranked copy.');
-    steps.push('If yes, transfer this one for the candy.');
-    steps.push('If this is your only one, hold until you find a better version.');
-    return { category, reasons, steps };
-  }
+  // ── 8. 3-star protection + transfer/trade decisions ───────────────────────────
 
-  // 11. Rare + decent/high IV
-  if (rarity === 'rare' && !lowIV) {
-    if (highIV) {
-      category = 'KEEP';
-      reasons.push({ icon:'📦', text:`Rare Pokémon with excellent IVs (${ivPct}%) — definitely worth keeping.` });
-      steps.push(`Favorite ${esc(name)} to keep it safe.`);
-      steps.push('Power it up for its strongest role (raids if ATK is highest; PvP if rank is solid).');
+  // 3-star (IV ≥ 80%): never directly transfer — suggest Lucky Trade or hold
+  if (highIV) {
+    category = rarity === 'rare' ? 'KEEP' : 'LUCKY_TRADE';
+    if (rarity === 'rare') {
+      reasons.push({ icon:'📦', text:`Rare ${esc(name)} with ${ivPct}% IV — not specialized for any current role but too valuable to transfer.` });
+      reasons.push({ icon:'💡', text:'Rule: never transfer a 3-star or 4-star until you have a confirmed better replacement.' });
+      steps.push(`Favorite ${esc(name)} (★).`);
+      steps.push('Power up once you identify its best role — check ATK for raids or PvP rank for Battle League.');
     } else {
-      category = 'LUCKY_TRADE';
-      reasons.push({ icon:'🍀', text:`Rare Pokémon — good candidate for a Lucky trade to boost IVs from ${ivPct}%.` });
-      reasons.push({ icon:'✨', text:'A Lucky version guarantees ≥12/12/12 IVs at half the Stardust power-up cost.' });
-      steps.push('Hold as trade fodder for a Best Friend trade.');
-      steps.push('If it goes Lucky, the improved IVs and Stardust discount make it worth powering up.');
+      reasons.push({ icon:'🍀', text:`${ivPct}% IV (3-star) — strong Lucky Trade candidate. Never transfer a 3-star until you have a confirmed better copy.` });
+      reasons.push({ icon:'✨', text:'A Lucky trade guarantees ≥ 12/12/12 IVs and halves all Stardust power-up costs permanently.' });
+      steps.push('Hold as Lucky Trade fodder for a Best Friend trade.');
+      steps.push('If it goes Lucky and hits 82%+ IV, it may qualify as a raid attacker — re-run through PokeAdvisor.');
     }
     return { category, reasons, steps };
   }
 
-  // Fallback: Keep
+  // Common Pokémon that fails every role threshold → Transfer
+  if (rarity === 'common') {
+    category = 'TRANSFER';
+    const fails = [];
+    if (!highAtk || !raidIV) fails.push(`raid (needs ATK ≥ 13 + IV ≥ 82%; has ATK ${atk}/15 + ${ivPct}% IV)`);
+    if (!pvpGLmin)            fails.push(`PvP (${pvpPct}% rank below 70% minimum)`);
+    if (!highDef || !highSta) fails.push(`gym defense (needs DEF ≥ 13 + STA ≥ 13; has DEF ${def}/15 + STA ${sta}/15)`);
+    reasons.push({ icon:'📦', text:`Common ${esc(name)} does not meet thresholds for: ${fails.join('; ')}.` });
+    reasons.push({ icon:'🍬', text:'Transfer for 1 candy per Pokémon. The candy helps power up your qualifying versions.' });
+    steps.push('Check whether you already have a higher-IV or better-ranked copy.');
+    steps.push('If yes — transfer. If this is your only one — hold until you find a better replacement.');
+    return { category, reasons, steps };
+  }
+
+  // Rare Pokémon below 80% IV → Lucky Trade (better than transferring)
+  if (rarity === 'rare') {
+    category = 'LUCKY_TRADE';
+    reasons.push({ icon:'🍀', text:`Rare ${esc(name)} at ${ivPct}% IV — hold for a Lucky trade rather than transferring. Lucky guarantees ≥ 12/12/12 IVs at half the Stardust cost.` });
+    reasons.push({ icon:'✨', text:'The Stardust discount from a Lucky trade applies to every power-up — valuable even on a sub-par rare.' });
+    steps.push('Hold as trade fodder for a Best Friend trade.');
+    steps.push('If it goes Lucky, re-run through PokeAdvisor — it may now qualify for raids or ML PvP.');
+    return { category, reasons, steps };
+  }
+
+  // Fallback
   category = 'KEEP';
-  reasons.push({ icon:'📦', text:`${esc(name)} does not clearly fit a single specialized role right now.` });
-  reasons.push({ icon:'ℹ️', text:`IV: ${ivPct}%, PvP: ${pvpPct}% — hold and reassess as your roster grows.` });
-  steps.push('Tag it with a colored tag so it does not clutter storage.');
-  steps.push('Hold until you catch a clearly better version or need the space.');
-  steps.push('Re-evaluate when you invest in raids, PvP, or gym defense.');
+  reasons.push({ icon:'📦', text:`${esc(name)} does not clearly qualify for a specialized role right now — hold and reassess.` });
+  reasons.push({ icon:'ℹ️', text:`IV ${ivPct}% · ATK ${atk}/15 · PvP ${pvpPct}%. Keep until your roster of top-tier attackers and PvP mons is complete.` });
+  steps.push('Tag it so it does not clutter storage.');
+  steps.push('Reassess when you invest in raids, PvP, or gym defense.');
   return { category, reasons, steps };
 }
 
@@ -1830,6 +1993,7 @@ function analyze() {
   const isLegendary = getChk('is-legendary');
   const hasExclMove = getChk('has-excl-move');
   const isMega      = getChk('is-mega');
+  const isDynamax   = getChk('is-dynamax');
 
   if (!name)                                     { alert('Please enter a Pokémon name.'); return; }
   if (isNaN(ivPct)||ivPct<0||ivPct>100)         { alert('Overall IV % must be 0–100.'); return; }
@@ -1837,7 +2001,7 @@ function analyze() {
   if ([atk,def,sta].some(v=>isNaN(v)||v<0||v>15)) { alert('Individual IVs must be 0–15.'); return; }
   if (isNaN(level)||level<1||level>50)           { alert('Level must be 1–50.'); return; }
 
-  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isShiny, isLegendary, hasExclMove, isMega };
+  const input  = { name, ivPct, pvpPct, atk, def, sta, level, cp, isShadow, isUnev, rarity, isShiny, isLegendary, hasExclMove, isMega, isDynamax };
   const result = decide(input);
   renderResult(input, result);
   saveToHistory(input, result);
